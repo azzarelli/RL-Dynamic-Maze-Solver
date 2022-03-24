@@ -16,7 +16,7 @@ maze_cells = np.zeros((201, 201, 2), dtype=int)
 
 # load maze
 def load_maze():
-    file_path = "lib/COMP6247Maze20212022.npy"
+    file_path = "../lib/COMP6247Maze20212022.npy"
     if not os.path.exists(file_path):
         raise ValueError("Cannot find %s" % file_path)
 
@@ -30,7 +30,8 @@ def load_maze():
                 # load the maze, with 1 denoting an empty location and 0 denoting a wall
                 maze_cells[i][j][1] = 0  
                 # initialized to 0 denoting no fire
-        print(maze)
+    return maze
+
 # get local 3*3 information centered at (x,y).
 def get_local_maze_information(x, y):
     global maze_cells
