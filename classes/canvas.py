@@ -1,8 +1,8 @@
 import pygame
 import sys
-import time
 
 from lib.read_maze import load_maze, get_local_maze_information
+
 
 SCREENSIZE = W, H = 1000, 1000
 mazeWH = 1000
@@ -10,7 +10,7 @@ origin = ((W - mazeWH)/2, (H - mazeWH)/2)
 lw = 2 # linewidth of maze-grid
 
 # Colors
-GREY = (15,15,15)
+GREY = (140,140,140) # (15,15,15)
 DARKGREY = (27, 27,0)
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
@@ -18,9 +18,12 @@ GREEN = (0, 255, 0)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 201)
 
+
 class Canvas:
     def __init__(self):
         self.step_cntr = 0
+        self.cntr = 0
+
         self.maze = load_maze()
         self.shape = self.maze.shape[0]
 
@@ -89,9 +92,14 @@ class Canvas:
                         + cellBorder + lw / 2,
                         celldimX, celldimY, col=BLUE)
 
-    def step_canvas(self):
+    def update_cntr(self,cntr):
+        pass #print(f'Steps: {cntr}')
+
+    def step_canvas(self, visible, idx, cntr):
         """Run the pygame environment for displaying the maze structure and visible (local) environment of actor
         """
+        self.update_cntr(cntr)
+        self.set_visible(visible, idx)
         self.get_event()
 
         self.surface.fill(GREY)
@@ -105,7 +113,7 @@ class Canvas:
 
     def set_visible(self, visible, idx):
         self.vis = visible
-        self.visidx = idx
+        self.actor = idx
 
     def draw_visible(self):
         """Draw the visible environment around the actor
@@ -121,8 +129,8 @@ class Canvas:
         self.visible = self.vis
         for row in range(3):
             for col in range(3):
-                r = self.visidx[0] + (row - 1)
-                c = self.visidx[1] + (col - 1)
+                c = self.actor[0] + (row - 1)
+                r = self.actor[1] + (col - 1)
 
                 if row == 1 and col == 1:
                     self.drawSquareCell(
@@ -132,7 +140,7 @@ class Canvas:
                         + lw / 2,
                         celldimX, celldimY, col=GREEN)
                 else:
-                    if self.vis[row][col][1] > 0:
+                    if self.vis[col][row][1] > 0:
 
                         self.drawSquareCell(
                             origin[0] + (celldimY * r)
@@ -141,14 +149,14 @@ class Canvas:
                             + lw / 2,
                             celldimX, celldimY, col=RED)
                     else:
-                        if self.vis[row][col][0] == 1:
+                        if self.vis[col][row][0] == 1:
                             self.drawSquareCell(
                                 origin[0] + (celldimY * r)
                                 + lw / 2,
                                 origin[1] + (celldimX * c)
                                 + lw / 2,
                                 celldimX, celldimY, col=WHITE)
-                        elif self.vis[row][col][0] == 0:
+                        elif self.vis[col][row][0] == 0:
                             self.drawSquareCell(
                                 origin[0] + (celldimY * r)
                                 + lw / 2,

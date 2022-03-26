@@ -16,7 +16,7 @@ maze_cells = np.zeros((201, 201, 2), dtype=int)
 
 # load maze
 def load_maze():
-    file_path = "../lib/COMP6247Maze20212022.npy"
+    file_path = "lib/COMP6247Maze20212022.npy"
     if not os.path.exists(file_path):
         raise ValueError("Cannot find %s" % file_path)
 
