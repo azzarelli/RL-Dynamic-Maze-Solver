@@ -1,12 +1,13 @@
 import numpy as np
 import torch as T
-from classes.replaybuffer import ReplayBuffer
+#from classes.replaybuffer import ReplayBuffer # Simple Replay Buffer
+from classes.replaybuffer_ import ReplayBuffer
 from classes.ddqn import DDQN
 
 class Agent():
     def __init__(self, gamma, epsilon, lr, n_actions, input_dims,
                  mem_size, batch_size, eps_min=0.01, eps_dec=5e-7,
-                 replace=1000, save_dir='networkdata/', name='maze-test-1.pt'):
+                 replace=1000, save_dir='networkdata/', name='maze-test-1.pt', combined=False):
         self.learn_step_counter = 0
         self.gamma = gamma
         self.epsilon = epsilon
@@ -22,7 +23,7 @@ class Agent():
 
         self.action_space = [i for i in range(self.n_actions)]
 
-        self.memory = ReplayBuffer(mem_size, input_dims)
+        self.memory = ReplayBuffer(input_dims, mem_size, batch_size, combined)
 
         self.q_eval = DDQN(self.lr, self.n_actions, input_dims=self.input_dims,
                            name=name, save_dir=self.save_dir)
@@ -61,7 +62,7 @@ class Agent():
 
     def learn(self):
         # Wait for memory to fill up before learning from empty set
-        if self.memory.mem_cntr < self.batch_size:
+        if not self.memory.is_sufficient():
             return
 
         # Start AD
@@ -69,11 +70,11 @@ class Agent():
         self.replace_target_network()
 
         # sample memory
-        state, action, reward, state_, term = \
-                self.memory.sample_buffer(self.batch_size)
+        state, actions, reward, state_, term = \
+                self.memory.sample_buffer()
 
         states = T.tensor(state).to(self.q_eval.device)
-        actions = T.tensor(action).to(self.q_eval.device)
+        #actions = T.tensor(action).to(self.q_eval.device)
         term = T.tensor(term).to(self.q_eval.device)
         rewards = T.tensor(reward).to(self.q_eval.device)
         states_ = T.tensor(state_).to(self.q_eval.device)
@@ -98,7 +99,7 @@ class Agent():
 
         loss = self.q_eval.loss(q_target, q_pred).to(self.q_eval.device)
         loss.backward()
+
         self.q_eval.optimiser.step()
         self.learn_step_counter += 1
-
         self.dec_epsilon()

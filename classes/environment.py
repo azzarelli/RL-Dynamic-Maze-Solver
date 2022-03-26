@@ -17,9 +17,9 @@ action_dir = {"0": {"id":'stay',
 
 global reward_dir
 reward_dir = {"stay": 0,
-              "wall":-10,
-              "fire":-1000,
-              "oldman":-100,
+              "wall":-1,
+              "fire":-50,
+              "oldman":-50,
               "away":0,
               "back":0,
               "end":10000
@@ -50,7 +50,7 @@ class Environment():
                 l1.append(j[0]) # index % 2 in loc_vec = wall data
                 l2.append(j[1]) # index % 3 (and index 1) in loc_vec = fire data
         self.observation = l1+l2
-        self.observation.append(self.step_cntr) # time elapsed playing is also an input
+        #self.observation.append(self.step_cntr) # time elapsed playing is also an input
         return self.observation
 
     @property
@@ -67,10 +67,12 @@ class Environment():
         i.e. accessing through `[r][c]` is much easier than cycling through `obj[i]`
         """
         loc_mat = [[[0, 0] for i in range(3)] for j in range(3)]
-        for i in range(len(self.observation)-1):
+        for i in range(len(self.observation)):
             if i < 9:
                 loc_mat[int(i/3)][i - int(i/3)*3][0] = self.observation[i]
-
+            else:
+                j = i - 9
+                loc_mat[int(j / 3)][j - int(j / 3) * 3][1] = self.observation[i]
         return loc_mat
 
     @property

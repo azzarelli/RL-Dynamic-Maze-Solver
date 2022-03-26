@@ -8,7 +8,8 @@ import torch.optim as optim
 
 
 class ReplayBuffer():
-    def __init__(self, max_size, input_shape):
+    def __init__(self, input_shape, max_size, batch_size):
+        self.batch_size = batch_size
         self.mem_size = max_size # bound memory so we don't crash RAM
         self.mem_cntr = 0 # simulate stack by knowing whee in memory we are
 
@@ -32,10 +33,10 @@ class ReplayBuffer():
         # increment position in memory
         self.mem_cntr += 1
 
-    def sample_buffer(self, batch_size):
+    def sample_buffer(self):
         # Max existing memory size (if mem not full set max mem to counter value)
         max_mem = min(self.mem_size, self.mem_cntr)
-        btch = np.random.choice(max_mem, batch_size, replace=False)
+        btch = np.random.choice(max_mem, self.batch_size, replace=False)
 
         states = self.state_mem[btch]
         states_ = self.state_mem_[btch]
@@ -44,3 +45,6 @@ class ReplayBuffer():
         terminal = self.terminal_mem[btch]
 
         return states, actions, rewards, states_, terminal
+
+    def is_sufficient(self):
+        return self.mem_cntr > self.batch_size

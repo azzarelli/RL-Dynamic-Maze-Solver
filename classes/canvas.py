@@ -95,7 +95,7 @@ class Canvas:
     def update_cntr(self,cntr):
         pass #print(f'Steps: {cntr}')
 
-    def step_canvas(self, visible, idx, cntr):
+    def step(self, visible, idx, cntr):
         """Run the pygame environment for displaying the maze structure and visible (local) environment of actor
         """
         self.update_cntr(cntr)
