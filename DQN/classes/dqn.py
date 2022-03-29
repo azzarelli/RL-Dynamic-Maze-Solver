@@ -17,8 +17,9 @@ class DQN(nn.Module):
             nn.ReLU(),
             nn.Linear(256, 256),
             nn.ReLU(),
-            nn.Linear(256, n_actions)
+            nn.Linear(256, n_actions),
             )
+        self.sm = nn.Softmax(dim=1)
 
         self.optimiser = optim.Adam(self.parameters(), lr=lr)
         self.loss = nn.MSELoss()
@@ -29,6 +30,7 @@ class DQN(nn.Module):
 
     def forward(self, state):
         action = self.feature_stream(state)
+
         return action
 
     def save_(self):

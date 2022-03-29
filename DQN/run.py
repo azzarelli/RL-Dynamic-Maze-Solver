@@ -22,8 +22,8 @@ def run(train_chck=True, chckpt=False, lr=0.01, epsilon=0.9,
         gamma=0.99, episodes=100, netname='default.pt'):
     # Default (Fixed) Parameters
     epsilon_min = 0.1
-    epsilon_dec = 7e-5
-    input_dims = [18]
+    epsilon_dec = 1e-6
+    input_dims = [9]
     output_dims = 5
 
     replace_testnet = 50

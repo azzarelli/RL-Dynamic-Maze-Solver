@@ -28,13 +28,13 @@ action_dir = {"0": {"id":'stay',
               }
 
 global rewards_dir
-rewards_dir = {"onwards": 0,
+rewards_dir = {"onwards": -.04,
               "backwards":-0.0,
-              "visited":-0.8,
-              "blockedin":0.04,
-              "fire":-200.,
-              "wall":-1.2,
-              "stay":-0.4,
+              "visited":-0.3,
+              "blockedin":-0.1,
+              "fire":-1.,
+              "wall":-.75,
+              "stay":-0.3,
               }
 
 
@@ -68,17 +68,23 @@ class Environment:
     @property
     def observe_environment(self):
         x, y = self.actor_pos
-        self.actorpath.append(self.actor_pos)
+
 
         loc = get_local_maze_information(y, x)
         self.obs2D = loc.copy()
-        l1, l2 = [], []
-        for l in loc:
-            for j in l:
-                l1.append(j[0]) # index % 2 in loc_vec = wall data
-                l1.append(j[1]) # index % 3 (and index 1) in loc_vec = fire data
+        l1, l2, l3 = [], [], []
+        for l in range(len(loc)):
+            for j in range(len(loc[l])):
 
-        self.observation = l1#+l2
+                if loc[l][j][1] > 1:
+                    l1.append(loc[l][j][1])
+                elif loc[l][j][0] == 0:
+                    l1.append(0)
+                else:
+                    l1.append(-1)
+
+        self.actorpath.append(self.actor_pos)
+        self.observation = l1
         #self.observation.append(self.step_cntr)
         return self.observation
 

@@ -39,20 +39,20 @@ class ReplayBuffer:
         rewards = self.reward_memory[batch]
         terminals = self.terminal_memory[batch]
 
-        if self.combined:
-            index = self.mem_cntr % self.mem_size - 1
-            last_action = self.action_memory[index]
-            last_state = self.state_memory[index]
-            last_new_state = self.new_state_memory[index]
-            last_reward = self.reward_memory[index]
-            last_terminal = self.terminal_memory[index]
-
-            actions = np.append(self.action_memory[batch], last_action)
-            states = np.vstack((self.state_memory[batch], last_state))
-            new_states = np.vstack((self.new_state_memory[batch],
-                                   last_new_state))
-            rewards = np.append(self.reward_memory[batch], last_reward)
-            terminals = np.append(self.terminal_memory[batch], last_terminal)
+        # if self.combined:
+        #     index = self.mem_cntr % self.mem_size - 1
+        #     last_action = self.action_memory[index]
+        #     last_state = self.state_memory[index]
+        #     last_new_state = self.new_state_memory[index]
+        #     last_reward = self.reward_memory[index]
+        #     last_terminal = self.terminal_memory[index]
+        #
+        #     actions = np.append(self.action_memory[batch], last_action)
+        #     states = np.vstack((self.state_memory[batch], last_state))
+        #     new_states = np.vstack((self.new_state_memory[batch],
+        #                            last_new_state))
+        #     rewards = np.append(self.reward_memory[batch], last_reward)
+        #     terminals = np.append(self.terminal_memory[batch], last_terminal)
 
         return states, actions, rewards, new_states, terminals
 
