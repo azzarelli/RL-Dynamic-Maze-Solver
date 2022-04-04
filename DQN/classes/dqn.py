@@ -30,7 +30,6 @@ class DQN(nn.Module):
 
     def forward(self, state):
         action = self.feature_stream(state)
-
         return action
 
     def save_(self):

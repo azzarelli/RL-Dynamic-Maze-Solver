@@ -2,6 +2,7 @@ import numpy as np
 import torch as T
 from classes.replaybuffer import ReplayBuffer # Simple Replay Buffer
 #from classes.replaybuffer_ import ReplayBuffer
+#from DQN.classes.memory.per import PrioritizedReplayBuffer
 
 from DQN.classes.dqn import DQN
 
@@ -34,6 +35,7 @@ class Agent():
 
 
     def greedy_epsilon(self, observation):
+        actions = []
         # if we randomly choose max expected reward action
         if np.random.random() > self.epsilon:
             state = T.tensor([observation], dtype=T.float).to(self.q_eval.device)
@@ -42,7 +44,7 @@ class Agent():
         # otherwise random action
         else:
             action = np.random.choice(self.action_space)
-        return action
+        return action, actions
 
     def store_transition(self, state, state_, reward, action, done):
         self.memory.store_buffer(state, state_, reward, action, done)
@@ -91,13 +93,16 @@ class Agent():
         max_actions = T.argmax(q_eval, dim=1)
 
         # apply mask for terminates networks
-        q_next[term] = 0.0
+        q_next[term_btch] = 0.0
 
         q_target = rewards_btch + self.gamma * q_next[idxs, max_actions]
 
+        print(q_target, q_pred)
         loss = self.q_eval.loss(q_target, q_pred).to(self.q_eval.device)
-        loss.backward()
 
+        loss.backward()
         self.q_eval.optimiser.step()
         self.learn_step_counter += 1
         self.dec_epsilon()
+
+        return loss.item()

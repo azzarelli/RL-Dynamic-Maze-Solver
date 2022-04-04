@@ -28,13 +28,13 @@ action_dir = {"0": {"id":'stay',
               }
 
 global rewards_dir
-rewards_dir = {"onwards": -.04,
-              "backwards":-0.0,
-              "visited":-0.3,
-              "blockedin":-0.1,
+rewards_dir = {"onwards": +.04,
+              "backwards":-.0,
+              "visited":-0.04,
+              "blockedin":+0.1,
               "fire":-1.,
-              "wall":-.75,
-              "stay":-0.3,
+              "wall":-1.,
+              "stay":-0.016,
               }
 
 
@@ -75,8 +75,7 @@ class Environment:
         l1, l2, l3 = [], [], []
         for l in range(len(loc)):
             for j in range(len(loc[l])):
-
-                if loc[l][j][1] > 1:
+                if loc[l][j][1] > 0:
                     l1.append(loc[l][j][1])
                 elif loc[l][j][0] == 0:
                     l1.append(0)
@@ -84,7 +83,7 @@ class Environment:
                     l1.append(-1)
 
         self.actorpath.append(self.actor_pos)
-        self.observation = l1
+        self.observation = l1 + [self.actor_pos[0], self.actor_pos[1]]
         #self.observation.append(self.step_cntr)
         return self.observation
 
@@ -119,7 +118,7 @@ class Environment:
         4 - right
 
         """
-        #time.sleep(1) # delay for time animation
+        #time.sleep(5) # delay for time animation
         self.step_cntr += 1 # increment time
 
         global action_dir # Fetch action directory containing the properties of each action w.r.t environment

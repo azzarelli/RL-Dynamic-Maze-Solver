@@ -32,12 +32,12 @@ class Plotter:
 
         print('Plotting ...')
         plt.figure()
-        plt.plot(self.scores, color='blue')
+        plt.plot(self.scores, color='blue', label='Raw')
         plt.plot(self.scores_avg, color='orange', label='Average')
         plt.xlabel('Epochs')
         plt.legend()
         plt.ylabel('Avg Score')
-        plt.savefig('liveplot/avg_score.png')
+        plt.savefig('liveplot/score.png')
 
         if self.stay_cntrs != [] and self.visit_cntrs != [] and self.wall_cntrs != []:
             plt.figure()

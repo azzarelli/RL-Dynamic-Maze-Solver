@@ -1,7 +1,7 @@
 from run import run
 
 if __name__ == '__main__':
-    run(train_chck=False, chckpt=True, episodes=1000,
-        lr=0.01, epsilon=0.5, gamma=0.99,
-       netname='dynamic-new')
+    run(train_chck=False, chckpt=False, episodes=300,
+        lr=0.001, epsilon=0.3, gamma=0.99,
+       netname='dynamic-test1')
 

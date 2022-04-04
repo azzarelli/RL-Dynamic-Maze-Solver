@@ -12,6 +12,8 @@ spaces.
 """
 import time
 from lib.read_maze import get_local_maze_information
+import numpy as np
+from PIL import Image
 
 # We set the action-space directory to access
 global action_dir
@@ -28,13 +30,13 @@ action_dir = {"0": {"id":'stay',
               }
 
 global rewards_dir
-rewards_dir = {"onwards": 0,
-              "backwards":-0.0,
-              "visited":-0.8,
-              "blockedin":0.04,
-              "fire":-200.,
-              "wall":-1.2,
-              "stay":-0.4,
+rewards_dir = {"onwards": +.16,
+              "backwards":+.16,
+              "visited":-.8,
+              "blockedin":+0.08,
+              "fire":-1.,
+              "wall":-.9,
+              "stay":-0.16,
               }
 
 
@@ -49,8 +51,6 @@ class Environment:
         self.wall_cntr = 0
         self.stay_cntr = 0
         self.visit_cntr = 0
-
-
 
     @property
     def reset(self):
@@ -68,18 +68,31 @@ class Environment:
     @property
     def observe_environment(self):
         x, y = self.actor_pos
-        self.actorpath.append(self.actor_pos)
-
         loc = get_local_maze_information(y, x)
         self.obs2D = loc.copy()
-        l1, l2 = [], []
-        for l in loc:
-            for j in l:
-                l1.append(j[0]) # index % 2 in loc_vec = wall data
-                l1.append(j[1]) # index % 3 (and index 1) in loc_vec = fire data
+        l1, l2, l3 = [], [], []
+        for l in range(len(loc)):
+            for j in range(len(loc[l])):
+                if (l,j) != (1,1):
+                    n_wall = abs(1-loc[l][j][0]) # Turns wall into 1 and space into 0
+                    if n_wall == 1: # if wall
+                        l1.append(0)
+                    elif loc[l][j][1] > 0: # else if fire
+                        l1.append(loc[l][j][1])
+                    else:
+                        l1.append(1)
 
-        self.observation = l1#+l2
+                    # y_ = y + l - 1
+                    # x_ = x + j - 1
+                    # if (x_, y_) in self.actorpath and l != j:
+                    #     l3.append(1)
+                    # else:
+                    #     l3.append(0)
+
+        self.actorpath.append(self.actor_pos)
+        self.observation = l1 + [self.actor_pos[0], self.actor_pos[1], np.sqrt((self.actor_pos[0]**2 + self.actor_pos[1]**2))]
         #self.observation.append(self.step_cntr)
+
         return self.observation
 
     @property
@@ -113,9 +126,8 @@ class Environment:
         4 - right
 
         """
-        #time.sleep(1) # delay for time animation
+        # time.sleep(10) # delay for time animation
         self.step_cntr += 1 # increment time
-
         global action_dir # Fetch action directory containing the properties of each action w.r.t environment
         act_key = str(action)
         global rewards_dir # Fetch reward directory
@@ -146,8 +158,8 @@ class Environment:
 
         if obsv_mat[y_loc][x_loc][0] == 0: # check for a wall
             self.wall_cntr += 1
-            return self.observe_environment, rewards_dir['wall'], False, {}
-        if obsv_mat[y_loc][x_loc][1] > 0: # check for a wall
+            return self.observe_environment, rewards_dir['wall'], False, {} # walking into walls is fatal
+        if obsv_mat[y_loc][x_loc][1] > 0: # check for a fire
             self.wall_cntr += 1
             return self.observe_environment, rewards_dir['fire'], True, {}
 
@@ -160,7 +172,7 @@ class Environment:
         # Have we visited this spot already?
         if self.actor_pos in self.actorpath:
             self.visit_cntr += 1
-            return self.observe_environment, rewards_dir['visited'], False, {}
+            return self.observe_environment, rewards_dir['visited'], True, {}
 
         # Are we moving towars the goal?
         if x_inc > 0 or y_inc > 0:

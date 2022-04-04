@@ -4,9 +4,9 @@ import sys
 from lib.read_maze import load_maze, get_local_maze_information
 
 
-SCREENSIZE = W, H = 1000, 1000
+SCREENSIZE = W, H = 1400, 1000
 mazeWH = 1000
-origin = ((W - mazeWH)/2, (H - mazeWH)/2)
+origin = (((W - mazeWH)/2)-150, (H - mazeWH)/2)
 lw = 2 # linewidth of maze-grid
 
 # Colors
@@ -29,6 +29,7 @@ class Canvas:
         self.shape = 201
 
         pygame.init()
+        self.font = pygame.font.SysFont('Arial', 20)
         self.surface = pygame.display.set_mode(SCREENSIZE)
         self.actor = (1,1)
 
@@ -91,7 +92,7 @@ class Canvas:
                         + cellBorder + lw / 2,
                         celldimX, celldimY, col=BLUE)
 
-    def step(self, visible, idx, path):
+    def step(self, visible, idx, path, acts):
         """Run the pygame environment for displaying the maze structure and visible (local) environment of actor
         """
         self.get_event()
@@ -101,7 +102,7 @@ class Canvas:
         self.drawSquareGrid(origin, mazeWH)
 
         self.placeCells()
-        self.draw_visible()
+        self.draw_visible(acts)
         pygame.display.update()
         self.step_cntr += 1
 
@@ -110,7 +111,7 @@ class Canvas:
         self.actor = idx
         self.path = path
 
-    def draw_visible(self):
+    def draw_visible(self, acts):
         """Draw the visible environment around the actor
 
         Notes
@@ -119,6 +120,15 @@ class Canvas:
         DARKGREY - signifies a visible wall
         WHITE - signifies a path
         GREEN - indicates the actor's position
+
+        Action Space
+        ------------
+        0 - no move
+        1 - up
+        2 - left
+        3 - down
+        4 - right
+
         """
         celldimX = celldimY = (mazeWH / self.shape)
 
@@ -131,11 +141,14 @@ class Canvas:
                 + lw / 2,
                 celldimX, celldimY, col=DARKGREEN)
 
+        if acts != []:
+            acts = acts.data.cpu().numpy()[0]
 
         for row in range(3):
             for col in range(3):
                 c = self.actor[0] + (col - 1)
                 r = self.actor[1] + (row - 1)
+
 
 
                 if row == 1 and col == 1:
@@ -145,6 +158,12 @@ class Canvas:
                         origin[1] + (celldimX * c)
                         + lw / 2,
                         celldimX, celldimY, col=GREEN)
+                    self.drawSquareCell(
+                        1200
+                        + 8,
+                        300
+                        + 8,
+                        40, 40, col=GREEN)
                 else:
                     if self.vis[row][col][1] > 0:
 
@@ -154,21 +173,42 @@ class Canvas:
                             origin[1] + (celldimX * c)
                             + lw / 2,
                             celldimX, celldimY, col=RED)
-                    # else:
-                    #     if self.vis[row][col][0] == 1:
-                    #         self.drawSquareCell(
-                    #             origin[0] + (celldimY * r)
-                    #             + lw / 2,
-                    #             origin[1] + (celldimX * c)
-                    #             + lw / 2,
-                    #             celldimX, celldimY, col=WHITE)
-                    #     elif self.vis[row][col][0] == 0:
-                    #         self.drawSquareCell(
-                    #             origin[0] + (celldimY * r)
-                    #             + lw / 2,
-                    #             origin[1] + (celldimX * c)
-                    #             + lw / 2,
-                    #             celldimX, celldimY, col=DARKGREY)
+
+                        self.drawSquareCell(
+                            1200 + (40*(row - 1))
+                            + 8,
+                            300 + (40*(col - 1))
+                            + 8,
+                            40, 40, col=RED)
+                    elif self.vis[row][col][0] == 0:
+                        self.drawSquareCell(
+                            1200 + (40 * (row - 1))
+                            + 8,
+                            300 + (40 * (col - 1))
+                            + 8,
+                            40, 40, col=DARKGREY)
+
+                if acts != []:
+                    if (row - 1) < 0 and col == 1:
+                        self.surface.blit(self.font.render(str(float('%.3g' % acts[1])), True, (200, 200, 200)),
+                                          (1200 + (40 * (row - 1))+ 9,
+                                            300 + (40 * (col - 1))+ 9))
+                    elif (row - 1) > 0 and col == 1:
+                        self.surface.blit(self.font.render(str(float('%.3g' % acts[4])), True, (200, 200, 200)),
+                                          (1200 + (40 * (row - 1))+ 9,
+                                            300 + (40 * (col - 1))+ 9))
+                    elif row == 1 and (col - 1) < 0:
+                        self.surface.blit(self.font.render(str(float('%.3g' % acts[2])), True, (200, 200, 200)),
+                                          (1200 + (40 * (row - 1))+ 9,
+                                            300 + (40 * (col - 1))+ 9))
+                    elif row == 1 and (col - 1) > 0:
+                        self.surface.blit(self.font.render(str(float('%.3g' % acts[1])), True, (200, 200, 200)),
+                                          (1200 + (40 * (row - 1))+ 9,
+                                            300 + (40 * (col - 1))+ 9))
+                    elif row == 1 and col == 1:
+                        self.surface.blit(self.font.render(str(float('%.3g' % acts[1])), True, (0, 0, 0)),
+                                          (1200 + (40 * (row - 1))+ 9,
+                                            300 + (40 * (col - 1))+ 9))
 
     def get_event(self):
         for event in pygame.event.get():

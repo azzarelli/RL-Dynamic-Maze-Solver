@@ -22,8 +22,8 @@ def run(train_chck=True, chckpt=False, lr=0.01, epsilon=0.9,
         gamma=0.99, episodes=100, netname='default.pt'):
     # Default (Fixed) Parameters
     epsilon_min = 0.1
-    epsilon_dec = 1e-6
-    input_dims = [9]
+    epsilon_dec = 1e-4
+    input_dims = [12]
     output_dims = 5
 
     replace_testnet = 50
@@ -60,21 +60,21 @@ def run(train_chck=True, chckpt=False, lr=0.01, epsilon=0.9,
 
         score = 0
         while not done:
-            if not train_chck:
-                canv.step(env.obs2D.copy(), env.actor_pos, env.actorpath)
-
-            action = agent.greedy_epsilon(observation)
+            action, acts = agent.greedy_epsilon(observation)
             observation_, reward, done, info = env.step(action, score)
 
             score += reward
+            agent.store_transition(observation, observation_, reward,action, int(done))
 
-            agent.store_transition(observation, observation_, reward, action,
-                                   int(done))
-
-            agent.learn()
+            loss = agent.learn()
             observation = observation_
+
+            if not train_chck:
+                canv.step(env.obs2D.copy(), env.actor_pos, env.actorpath, acts)
+
+
         plt.data_in(score, wall_cntr=env.wall_cntr, stay_cntr=env.stay_cntr, visit_cntr=env.visit_cntr)
-        print(f'Ep {i}, score {score}, avg {plt.scores_avg[-1]}, epsilon {agent.epsilon}, lr {lr}')
+        print(f'Ep {i}, {loss} score {score}, avg {plt.scores_avg[-1]}, epsilon {agent.epsilon}, lr {lr}')
         print(f'    Stayed {env.stay_cntr} : Walls {env.wall_cntr}')
         # Save NN every 10 its
         if i > 10 and i % 10 == 0:
