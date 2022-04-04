@@ -5,6 +5,13 @@ from classes.replaybuffer import ReplayBuffer # Simple Replay Buffer
 
 from classes.ddqn import DDQN
 
+def TD_errors(q_pred, q_tru):
+    return q_pred - q_tru
+
+def get_priorities(q_pred, q_tru, err=1e-6):
+    with T.no_grad():
+        return np.abs(TD_errors(q_pred, q_tru).cpu().numpy()) + err
+
 class Agent():
     def __init__(self, gamma, epsilon, lr, n_actions, input_dims,
                  mem_size, batch_size, eps_min=0.01, eps_dec=5e-7,
@@ -25,7 +32,7 @@ class Agent():
 
         self.action_space = [i for i in range(self.n_actions)]
 
-        self.memory = ReplayBuffer(input_dims, mem_size, batch_size)
+        self.memory = ReplayBuffer(input_dims,  batch_size, mem_size, 0.05)
 
         self.q_eval = DDQN(self.lr, self.n_actions, input_dims=input_dims,
                            name=name, save_dir=self.save_dir)
@@ -35,24 +42,26 @@ class Agent():
 
 
     def greedy_epsilon(self, observation):
-        actions = []
-        # if we randomly choose max expected reward action
-        if np.random.random() > self.epsilon:
-            state = T.tensor(observation, dtype=T.float).to(self.q_eval.device)
-            _, advantage = self.q_eval.forward(state)
-            #print(advantage, _, T.argmax(advantage).item())
-            action = T.argmax(advantage).item()
-            actions = advantage
-        # otherwise random action
-        else:
-            action = np.random.choice(self.action_space)
-        return action, actions
+        with T.no_grad():
+            actions = []
+            # if we randomly choose max expected reward action
+            if np.random.random() > self.epsilon:
+                state = T.tensor(observation, dtype=T.float).to(self.q_eval.device)
+                _, advantage = self.q_eval.forward(state)
+                #print(advantage, _, T.argmax(advantage).item())
+                action = T.argmax(advantage).item()
+                actions = advantage
+            # otherwise random action
+            else:
+                action = np.random.choice(self.action_space)
+            return action, actions
 
     def store_transition(self, state, state_, reward, action, done):
-        self.memory.store_buffer(state, state_, reward, action, done)
+        self.memory.add(state, state_, reward, action, done)
 
     def replace_target_network(self):
         if self.learn_step_counter % self.replace_target_thresh == 0:
+            print('Replacing Target')
             self.q_next.load_state_dict(self.q_eval.state_dict())
 
     def dec_epsilon(self):
@@ -73,12 +82,16 @@ class Agent():
             return
 
         # Start AD
-        self.q_eval.optimiser.zero_grad()
         self.replace_target_network()
+        self.q_eval.optimiser.zero_grad()
 
         # sample memory
-        state, actions, reward, state_, term = \
-                self.memory.sample_buffer()
+        sample = self.memory.sample(0.4)
+        state = sample['state']
+        state_ = sample['state_']
+        actions = sample['action']
+        reward = sample['reward']
+        term = sample['done']
 
         states = T.tensor(state).to(self.q_eval.device)
         actions = T.tensor(actions).to(self.q_eval.device)
@@ -104,8 +117,13 @@ class Agent():
 
         # apply mask for terminates networks
 
+        priorities = get_priorities(q_pred, q_target)
+        self.memory.update_priorities(sample['indexes'], priorities)
+
         loss = self.q_eval.loss(q_target, q_pred).to(self.q_eval.device)
         loss.backward()
+
+        T.nn.utils.clip_grad_norm_(self.q_eval.parameters(), max_norm=0.5)
 
         self.q_eval.optimiser.step()
         self.learn_step_counter += 1

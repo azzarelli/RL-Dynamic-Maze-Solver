@@ -31,7 +31,9 @@ class DDQN(nn.Module):
             )
 
         self.optimiser = optim.Adam(self.parameters(), lr=lr)
-        self.loss = nn.MSELoss()
+        self.loss = nn.HuberLoss()
+
+
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
         print(f'... {name} Network training on {self.device} ...')
         self.to(self.device)
