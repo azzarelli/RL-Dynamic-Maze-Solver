@@ -30,10 +30,10 @@ action_dir = {"0": {"id":'stay',
               }
 
 global rewards_dir
-rewards_dir = {"onwards": +.16,
-              "backwards":+.16,
+rewards_dir = {"onwards": +.8,
+              "backwards":+.8,
               "visited":-.8,
-              "blockedin":+0.08,
+              "blockedin":+0.2,
               "fire":-1.,
               "wall":-.9,
               "stay":-0.16,
@@ -158,7 +158,7 @@ class Environment:
 
         if obsv_mat[y_loc][x_loc][0] == 0: # check for a wall
             self.wall_cntr += 1
-            return self.observe_environment, rewards_dir['wall'], False, {} # walking into walls is fatal
+            return self.observe_environment, rewards_dir['wall'], True, {} # walking into walls is fatal
         if obsv_mat[y_loc][x_loc][1] > 0: # check for a fire
             self.wall_cntr += 1
             return self.observe_environment, rewards_dir['fire'], True, {}
@@ -172,7 +172,7 @@ class Environment:
         # Have we visited this spot already?
         if self.actor_pos in self.actorpath:
             self.visit_cntr += 1
-            return self.observe_environment, rewards_dir['visited'], True, {}
+            return self.observe_environment, rewards_dir['visited'], False, {}
 
         # Are we moving towars the goal?
         if x_inc > 0 or y_inc > 0:

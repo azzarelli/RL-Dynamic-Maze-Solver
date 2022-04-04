@@ -19,11 +19,11 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
         gamma=0.9, episodes=100, netname='default.pt'):
     # Default (Fixed) Parameters
     epsilon_min = 0.01
-    epsilon_dec = 5e-5
+    epsilon_dec = 1e-3
     input_dims = [11]
     output_dims = 5
 
-    replace_testnet = 200
+    replace_testnet = 2
     memsize = 100000 # https://arxiv.org/abs/1712.01275
     batch_size = 64
 
@@ -57,6 +57,8 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
             while not done:
                 action, acts = agent.greedy_epsilon(observation)
                 observation_, reward, done, info = env.step(action, score)
+
+                beta = 0.4
 
                 score += reward
                 agent.store_transition(observation, observation_, reward, action,
