@@ -32,7 +32,7 @@ rewards_dir = {"onwards": +.04,
               "backwards":-.0,
               "visited":-0.04,
               "blockedin":+0.1,
-              "fire":-1.,
+              "fire":-800.,
               "wall":-1.,
               "stay":-0.016,
               }
@@ -82,9 +82,16 @@ class Environment:
                 else:
                     l1.append(-1)
 
-        self.actorpath.append(self.actor_pos)
-        self.observation = l1 + [self.actor_pos[0], self.actor_pos[1]]
-        #self.observation.append(self.step_cntr)
+                x_ = x + j - 1
+                y_ = y + l - 1
+
+                if (x_, y_) in self.actorpath:
+                    l2.append(1)
+                else:
+                    l2.append(0)
+                    self.actorpath.append(self.actor_pos)
+
+        self.observation = l1 + l2 + [self.actor_pos[0], self.actor_pos[1]]
         return self.observation
 
     @property
@@ -160,7 +167,7 @@ class Environment:
         self.actor_pos = new_pos = (x + x_inc, y + y_inc) # new global position if we move into a free space
         # Have we reached the end?
         if new_pos == (199, 199):
-            return self.observation, rewards_dir['end'], True, {}
+            return self.observation, 100., True, {}
 
         # Have we visited this spot already?
         if self.actor_pos in self.actorpath:

@@ -119,8 +119,5 @@ class ReplayBuffer():
             self._set_piority_min(idx, priority_alpha)
             self._set_priority_sum(idx, priority_alpha)
 
-    def is_full(self):
-        return self.capacity == self.size
-
     def is_sufficient(self):
-        return self.mem_cntr > self.batch_size
+        return self.size > self.batch_size

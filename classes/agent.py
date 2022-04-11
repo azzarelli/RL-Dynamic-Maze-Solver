@@ -15,13 +15,19 @@ def get_priorities(q_pred, q_tru, err=1e-6):
 class Agent():
     def __init__(self, gamma, epsilon, lr, n_actions, input_dims,
                  mem_size, batch_size, eps_min=0.01, eps_dec=5e-7,
-                 replace=1000, save_dir='networkdata/', name='maze-test-1.pt'):
+                 replace=1000, save_dir='networkdata/', name='maze-test-1.pt',
+                 alpha=0.5, beta=0.5):
+        # Network parameters
         self.learn_step_counter = 0
         self.gamma = gamma
         self.epsilon = epsilon
         self.lr = lr
         self.eps_min = eps_min
         self.eps_dec = eps_dec
+
+        # PER parameters
+        self.alpha = alpha
+        self.beta = beta
 
         self.n_actions = n_actions
         self.input_dims = input_dims
@@ -32,7 +38,7 @@ class Agent():
 
         self.action_space = [i for i in range(self.n_actions)]
 
-        self.memory = ReplayBuffer(input_dims,  batch_size, mem_size, 0.05)
+        self.memory = ReplayBuffer(input_dims,  batch_size, mem_size, self.alpha)
 
         self.q_eval = DDQN(self.lr, self.n_actions, input_dims=input_dims,
                            name=name, save_dir=self.save_dir)
@@ -40,10 +46,9 @@ class Agent():
                            name=name+'.next', save_dir=self.save_dir)
 
 
-
     def greedy_epsilon(self, observation):
         with T.no_grad():
-            actions = []
+            actions = T.Tensor([])
             # if we randomly choose max expected reward action
             if np.random.random() > self.epsilon:
                 state = T.tensor(observation, dtype=T.float).to(self.q_eval.device)
@@ -61,7 +66,6 @@ class Agent():
 
     def replace_target_network(self):
         if self.learn_step_counter % self.replace_target_thresh == 0:
-            print('Replacing Target')
             self.q_next.load_state_dict(self.q_eval.state_dict())
 
     def dec_epsilon(self):
@@ -86,7 +90,7 @@ class Agent():
         self.q_eval.optimiser.zero_grad()
 
         # sample memory
-        sample = self.memory.sample(0.4)
+        sample = self.memory.sample(self.beta)
         state = sample['state']
         state_ = sample['state_']
         actions = sample['action']
@@ -99,8 +103,6 @@ class Agent():
         rewards = T.tensor(reward).to(self.q_eval.device)
         states_ = T.tensor(state_).to(self.q_eval.device)
 
-        idxs = np.arange(self.batch_size)
-
         V_s, A_s = self.q_eval.forward(states)
         V_s_, A_s_ = self.q_next.forward(states_)
         # V_s_eval, A_s_eval = self.q_eval.forward(states_)
@@ -112,10 +114,6 @@ class Agent():
 
         q_target = rewards + self.gamma *T.max(q_next, dim=1)[0].detach() #q_next[idxs, max_actions]
         q_target[term] = 0.0
-        # q_eval = T.add(V_s_eval, (A_s_eval - A_s_eval.mean(dim=1, keepdim=True)))
-        # max_actions = T.argmax(q_eval, dim=1)
-
-        # apply mask for terminates networks
 
         priorities = get_priorities(q_pred, q_target)
         self.memory.update_priorities(sample['indexes'], priorities)
@@ -123,7 +121,7 @@ class Agent():
         loss = self.q_eval.loss(q_target, q_pred).to(self.q_eval.device)
         loss.backward()
 
-        T.nn.utils.clip_grad_norm_(self.q_eval.parameters(), max_norm=0.5)
+        #T.nn.utils.clip_grad_norm_(self.q_eval.parameters(), max_norm=0.5)
 
         self.q_eval.optimiser.step()
         self.learn_step_counter += 1

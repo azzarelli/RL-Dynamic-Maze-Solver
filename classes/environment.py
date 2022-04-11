@@ -30,27 +30,29 @@ action_dir = {"0": {"id":'stay',
               }
 
 global rewards_dir
-rewards_dir = {"onwards": +.8,
-              "backwards":+.8,
-              "visited":-.8,
-              "blockedin":+0.2,
-              "fire":-1.,
-              "wall":-.9,
-              "stay":-0.16,
+rewards_dir = {"onwards": +1.,
+              "backwards":+1.,
+              "visited":-.5,
+              "blockedin":+1.,
+              "fire":-800.,
+              "wall":-1.,
+              "stay":-0.,
               }
 
 
 class Environment:
     def __init__(self):
         self.step_cntr = 0
+        self.wall_cntr = 0
+        self.stay_cntr = 0
+        self.visit_cntr = 0
+
         self.actor_pos = (1, 1)
         self.actorpath = [self.actor_pos]
         self.observation = self.observe_environment  # set up empty state
         self.obs2D = []
 
-        self.wall_cntr = 0
-        self.stay_cntr = 0
-        self.visit_cntr = 0
+
 
     @property
     def reset(self):
@@ -73,26 +75,27 @@ class Environment:
         l1, l2, l3 = [], [], []
         for l in range(len(loc)):
             for j in range(len(loc[l])):
-                if (l,j) != (1,1):
-                    n_wall = abs(1-loc[l][j][0]) # Turns wall into 1 and space into 0
-                    if n_wall == 1: # if wall
-                        l1.append(0)
-                    elif loc[l][j][1] > 0: # else if fire
-                        l1.append(loc[l][j][1])
-                    else:
-                        l1.append(1)
+                if loc[l][j][0] == 0:
+                    l1.append(1)
+                else:
+                    l1.append(0)
+                l2.append(loc[l][j][1])
 
-                    # y_ = y + l - 1
-                    # x_ = x + j - 1
-                    # if (x_, y_) in self.actorpath and l != j:
-                    #     l3.append(1)
-                    # else:
-                    #     l3.append(0)
+                x_ = x + j - 1
+                y_ = y + l - 1
 
-        self.actorpath.append(self.actor_pos)
-        self.observation = l1 + [self.actor_pos[0], self.actor_pos[1], np.sqrt((self.actor_pos[0]**2 + self.actor_pos[1]**2))]
-        #self.observation.append(self.step_cntr)
+                if (x_, y_) in self.actorpath:
+                    l3.append(1)
+                else:
+                    l3.append(0)
+        if self.actor_pos not in self.actorpath:
+            self.visit_cntr = 0
+            self.actorpath.append(self.actor_pos)
+        else:
+            self.visit_cntr += 1
 
+
+        self.observation = l1 + l2 + l3 + [self.actor_pos[0], self.actor_pos[1]]
         return self.observation
 
     @property
@@ -135,30 +138,38 @@ class Environment:
         x_inc, y_inc = action_dir[act_key]['move'] # fetch movement from position (1,1)
 
         # If too much time elapsed you die in maze :( (terminate maze at this point)
-        if score < -100:
+        if self.step_cntr > 800:
             print('I became an old man and dies in this maze...')
             return self.observe_environment, -1., True, {} # terminate
+        # If we spent too long vising places we have already been
+        # if self.visit_cntr > 20:
+        #     print('Visisted Timeout')
+        #     return self.observe_environment, -800., True, {}  # terminate
 
         obsv_mat = self.get_local_matrix # get prior position
         x, y = self.actor_pos
 
         x_loc, y_loc = (1 + x_inc, 1 + y_inc) # Update Local Position
 
+        # Check to see if we are either blocked in as a result of prior path, wall or fire (if so -> reward staying)
         is_blocked = True
-        for o in obsv_mat:
-            for s in o:
-                if s[0] == 1 and s[1] == 0: # if there is a path and no fire, we are not blocked
-                    is_blocked = False
-
-        if action_dir[act_key]['id'] == 'stay' and is_blocked: # if we need to stay then reward
+        for i, o in enumerate(obsv_mat):
+            for j, p in enumerate(o):
+                if (i,j) in [(0,1), (1,0), (1,2), (2,1)]:
+                    pos = (x + j - 1, y + i -1)
+                    if p[0] == 1 and p[1] == 0:
+                        is_blocked = False
+        if action_dir[act_key]['id'] == 'stay' and is_blocked : # Reward staying if path is blocked
             return self.observe_environment, rewards_dir['blockedin'], False, {}
+
+
         elif action_dir[act_key]['id'] == 'stay': # if we stay for no reason then penalise
             self.stay_cntr += 1
             return self.observe_environment, rewards_dir['stay'], False, {}
 
         if obsv_mat[y_loc][x_loc][0] == 0: # check for a wall
             self.wall_cntr += 1
-            return self.observe_environment, rewards_dir['wall'], True, {} # walking into walls is fatal
+            return self.observe_environment, rewards_dir['wall'], False, {} # walking into walls is fatal
         if obsv_mat[y_loc][x_loc][1] > 0: # check for a fire
             self.wall_cntr += 1
             return self.observe_environment, rewards_dir['fire'], True, {}
@@ -167,11 +178,10 @@ class Environment:
         self.actor_pos = new_pos = (x + x_inc, y + y_inc) # new global position if we move into a free space
         # Have we reached the end?
         if new_pos == (199, 199):
-            return self.observation, rewards_dir['end'], True, {}
+            return self.observation, 100., True, {}
 
         # Have we visited this spot already?
         if self.actor_pos in self.actorpath:
-            self.visit_cntr += 1
             return self.observe_environment, rewards_dir['visited'], False, {}
 
         # Are we moving towars the goal?

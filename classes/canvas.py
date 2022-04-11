@@ -30,6 +30,7 @@ class Canvas:
 
         pygame.init()
         self.font = pygame.font.SysFont('Arial', 16)
+
         self.surface = pygame.display.set_mode(SCREENSIZE)
         self.actor = (1,1)
 
@@ -140,9 +141,8 @@ class Canvas:
                 origin[1] + (celldimX * s[0])
                 + lw / 2,
                 celldimX, celldimY, col=DARKGREEN)
-
         if acts != []:
-            acts = acts.data.cpu().numpy()[0]
+            # acts = acts.data.cpu().numpy()[0]
             if action == 0:action_str = 'Stay'
             elif action == 1:action_str = 'Up'
             elif action == 2:action_str = 'Left'
@@ -203,24 +203,25 @@ class Canvas:
                             40, 40, col=DARKGREEN)
 
                 if acts != []:
+
                     if (row - 1) < 0 and col == 1:
-                        self.surface.blit(self.font.render(str(float('%.3g' % acts[1])), True, (200, 200, 200)),
+                        self.surface.blit(self.font.render(str(float('%.2f' % acts[1])), True, (200, 200, 200)),
                                           (1200 + (40 * (row - 1))+ 9,
                                             300 + (40 * (col - 1))+ 9))
                     elif (row - 1) > 0 and col == 1:
-                        self.surface.blit(self.font.render(str(float('%.3g' % acts[3])), True, (200, 200, 200)),
+                        self.surface.blit(self.font.render(str(float('%.2f' % acts[3])), True, (200, 200, 200)),
                                           (1200 + (40 * (row - 1))+ 9,
                                             300 + (40 * (col - 1))+ 9))
                     elif row == 1 and (col - 1) < 0:
-                        self.surface.blit(self.font.render(str(float('%.3g' % acts[2])), True, (200, 200, 200)),
+                        self.surface.blit(self.font.render(str(float('%.2f' % acts[2])), True, (200, 200, 200)),
                                           (1200 + (40 * (row - 1))+ 9,
                                             300 + (40 * (col - 1))+ 9))
                     elif row == 1 and (col - 1) > 0:
-                        self.surface.blit(self.font.render(str(float('%.3g' % acts[4])), True, (200, 200, 200)),
+                        self.surface.blit(self.font.render(str(float('%.2f' % acts[4])), True, (200, 200, 200)),
                                           (1200 + (40 * (row - 1))+ 9,
                                             300 + (40 * (col - 1))+ 9))
                     elif row == 1 and col == 1:
-                        self.surface.blit(self.font.render(str(float('%.3g' % acts[0])), True, (0, 0, 0)),
+                        self.surface.blit(self.font.render(str(float('%.2f' % acts[0])), True, (0, 0, 0)),
                                           (1200 + (40 * (row - 1))+ 9,
                                             300 + (40 * (col - 1))+ 9))
         self.surface.blit(self.font.render(action_str, True, (200, 200, 200)),

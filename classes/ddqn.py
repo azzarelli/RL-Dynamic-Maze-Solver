@@ -5,6 +5,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 
+test_list = []
+
 class DDQN(nn.Module):
     def __init__(self, lr, n_actions, name, input_dims, save_dir):
         super(DDQN, self).__init__()
@@ -12,22 +14,18 @@ class DDQN(nn.Module):
         self.save_file = os.path.join(self.save_dir, name)
 
         self.features = nn.Sequential( # Convolutional layer
-            nn.Linear(*input_dims, 128),
+            nn.Linear(*input_dims, 512),
+            nn.ReLU(),
+            nn.Linear(512, 1024),
             nn.ReLU()
-            # nn.Linear(128, 128),
-            # nn.ReLU(),
 
             )
 
         self.value_stream = nn.Sequential(
-            nn.Linear(128, 128),
-            nn.ReLU(),
-            nn.Linear(128, 1)
+            nn.Linear(1024, 1)
             )
         self.advantage_stream = nn.Sequential(
-            nn.Linear(128, 128),
-            nn.ReLU(),
-            nn.Linear(128, n_actions)
+            nn.Linear(1024, n_actions)
             )
 
         self.optimiser = optim.Adam(self.parameters(), lr=lr)
