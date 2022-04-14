@@ -254,9 +254,6 @@ class PrioritizedReplayBuffer(ReplayBuffer):
 
 class NoisyLinear(nn.Module):
     """Noisy linear module for NoisyNet.
-
-
-
     Attributes:
         in_features (int): input size of linear module
         out_features (int): output size of linear module
@@ -457,7 +454,7 @@ class DQNAgent:
             n_step (int): step number to calculate n-step td error
         """
         obs_dim = env.observation_space.shape[0]
-        action_dim = env.action_space.n
+        action_dim = 5
 
         self.env = env
         self.batch_size = batch_size
@@ -469,7 +466,7 @@ class DQNAgent:
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
         )
-        print(self.device)
+        print(f"Loading {self.device}")
 
         # PER
         # memory for 1-step Learning
@@ -590,7 +587,7 @@ class DQNAgent:
 
         return loss.item()
 
-    def train(self, num_frames: int, plotting_interval: int = 200):
+    def train(self, num_frames: int, canv, plotting_interval: int = 200):
         """Train the agent."""
         self.is_test = False
 
@@ -599,6 +596,8 @@ class DQNAgent:
         losses = []
         scores = []
         score = 0
+
+        ep = 1
 
         for frame_idx in range(1, num_frames + 1):
             action = self.select_action(state)
@@ -618,6 +617,7 @@ class DQNAgent:
                 state = self.env.reset()
                 scores.append(score)
                 score = 0
+                ep +=1
 
             # if training is ready
             if len(self.memory) >= self.batch_size:
@@ -629,9 +629,11 @@ class DQNAgent:
                 if update_cnt % self.target_update == 0:
                     self._target_hard_update()
 
-            # plotting
-            if frame_idx % plotting_interval == 0:
-                self._plot(frame_idx, scores, losses)
+            canv.step(env.obs2D.copy(), self.env.actor_pos, self.env.actorpath, [], score, self.env.step_cntr, self.env.wall_cntr, [ep, frame_idx])
+
+            # # plotting
+            # if frame_idx % plotting_interval == 0:
+            #     self._plot(frame_idx, scores, losses)
 
         self.env.close()
 
@@ -723,8 +725,11 @@ class DQNAgent:
 
 
 # environment
-from environment import Environment
-env = Environment()
+import envs
+import gym
+
+env_id = "CustomEnv-v0"
+env = gym.make(env_id)
 
 seed = 777
 
@@ -740,18 +745,22 @@ seed_torch(seed)
 
 env.reset()
 
+from canvas import Canvas
 
+canv = Canvas()
 
 # parameters
-num_frames = 20000
+num_frames = 40000
 memory_size = 10000
 batch_size = 128
-target_update = 100
+target_update = 20
 
 # train
 agent = DQNAgent(env, memory_size, batch_size, target_update)
 
-agent.train(num_frames)
+canv.set_visible(env.get_local_matrix.copy(), env.actor_pos, [], 0)
+
+agent.train(num_frames, canv)
 
 
 
