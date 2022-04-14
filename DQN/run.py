@@ -19,14 +19,14 @@ import argparse
 def run(train_chck=True, chckpt=False, lr=0.01, epsilon=0.9,
         gamma=0.99, episodes=100, netname='default.pt'):
     # Default (Fixed) Parameters
-    epsilon_min = 0.1
+    epsilon_min = 0.3
     epsilon_dec = 0.01
     input_dims = [20]
     output_dims = 5
 
     replace_testnet = 1
-    memsize = 1000000 # https://arxiv.org/abs/1712.01275
-    batch_size = 64
+    memsize = 100000 # https://arxiv.org/abs/1712.01275
+    batch_size = 128
 
     # CER buffer
     parser = argparse.ArgumentParser(description='')

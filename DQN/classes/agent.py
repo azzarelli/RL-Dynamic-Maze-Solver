@@ -31,8 +31,7 @@ class Agent():
                            name=name, save_dir=self.save_dir)
         self.q_next = DQN(self.lr, self.n_actions, input_dims=input_dims,
                            name=name+'.next', save_dir=self.save_dir)
-
-
+        self.q_next.eval()
 
     def greedy_epsilon(self, observation):
         actions = []

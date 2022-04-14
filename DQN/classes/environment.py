@@ -32,7 +32,8 @@ rewards_dir = {"onwards": -.9,
               "backwards":-.9,
               "wall":-2.,
               "stay":-1.,
-              "visited":-1.
+              "visited":-1.,
+              "deadend":-10.
               }
 
 
@@ -131,14 +132,17 @@ class Environment:
         x_inc, y_inc = action_dir[act_key]['move'] # fetch movement from position (1,1)
 
         # If too much time elapsed you die in maze :( (terminate maze at this point)
-        if score < -100:
+        if self.step_cntr > 500:
             print('I became an old man and dies in this maze...')
             return self.observe_environment, -1., True, {} # terminate
 
         obsv_mat = self.get_local_matrix # get prior position
         x, y = self.actor_pos
+        x_ = x + x_inc
+        y_ = y + y_inc
 
         x_loc, y_loc = (1 + x_inc, 1 + y_inc) # Update Local Position
+
 
         if action_dir[act_key]['id'] == 'stay': # if we stay for no reason then penalise
             self.stay_cntr += 1
@@ -148,14 +152,24 @@ class Environment:
             self.wall_cntr += 1
             return self.observe_environment, rewards_dir['wall'], False, {}
 
-        # So if we do successfully move
         self.actor_pos = new_pos = (x + x_inc, y + y_inc) # new global position if we move into a free space
+
+        # Check to see if we are either blocked in as a result of prior path, wall or fire (if so -> reward staying)
+        is_blocked = True
+        for i, o in enumerate(obsv_mat):
+            for j, p in enumerate(o):
+                if (i,j) in [(0,1), (1,0), (1,2), (2,1)]:
+                    pos = (x + j - 1, y + i -1)
+                    if p[0] == 1 or (pos not in self.actorpath):
+                        is_blocked = False
+        if is_blocked : # Reward staying if path is blocked
+            print('Deadend')
+            return self.observe_environment, rewards_dir['deadend'], True, {}
+
+
         # Have we reached the end?
         if new_pos == (199, 199):
             return self.observation, 100., True, {}
-
-        x_ = x + x_inc
-        y_ = y + y_inc
 
         if (x_, y_) == self.actorpath[-1]:
             return self.observe_environment, rewards_dir['visited'], False, {}
