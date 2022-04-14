@@ -1,5 +1,6 @@
 import numpy as np
 import torch as T
+import time
 from classes.replaybuffer import ReplayBuffer # Simple Replay Buffer
 #from classes.replaybuffer_ import ReplayBuffer
 
@@ -16,7 +17,7 @@ class Agent():
     def __init__(self, gamma, epsilon, lr, n_actions, input_dims,
                  mem_size, batch_size, eps_min=0.01, eps_dec=5e-7,
                  replace=1000, save_dir='networkdata/', name='maze-test-1.pt',
-                 alpha=0.5, beta=0.5):
+                 alpha=0.7, beta=0.4):
         # Network parameters
         self.learn_step_counter = 0
         self.gamma = gamma
@@ -53,7 +54,7 @@ class Agent():
             if np.random.random() > self.epsilon:
                 state = T.tensor(observation, dtype=T.float).to(self.q_eval.device)
                 _, advantage = self.q_eval.forward(state)
-                #print(advantage, _, T.argmax(advantage).item())
+                #print(advantage, T.argmax(advantage).item())
                 action = T.argmax(advantage).item()
                 actions = advantage
             # otherwise random action
@@ -66,11 +67,19 @@ class Agent():
 
     def replace_target_network(self):
         if self.learn_step_counter % self.replace_target_thresh == 0:
+            print('Update target network...')
             self.q_next.load_state_dict(self.q_eval.state_dict())
+
+    def step_params(self):
+        self.dec_epsilon()
+        self.inc_beta()
 
     def dec_epsilon(self):
         self.epsilon = self.epsilon - self.eps_dec \
             if self.epsilon > self.eps_min else self.eps_min
+
+    def inc_beta(self):
+        self.beta = self.beta + 0.001 if self.beta < 1 else 1
 
     def save_models(self):
         self.q_eval.save_()
@@ -85,9 +94,11 @@ class Agent():
         if not self.memory.is_sufficient():
             return
 
+        #time.sleep(5) # delay for time animation
+
         # Start AD
-        self.replace_target_network()
-        self.q_eval.optimiser.zero_grad()
+        #self.replace_target_network()
+
 
         # sample memory
         sample = self.memory.sample(self.beta)
@@ -112,20 +123,30 @@ class Agent():
 
         q_next = T.add(V_s_, (A_s_ - A_s.mean(dim=1, keepdim=True)))
 
-        q_target = rewards + self.gamma *T.max(q_next, dim=1)[0].detach() #q_next[idxs, max_actions]
+        q_target = rewards + self.gamma * T.max(q_next, dim=1)[0].detach() #q_next[idxs, max_actions]
         q_target[term] = 0.0
-
-        priorities = get_priorities(q_pred, q_target)
-        self.memory.update_priorities(sample['indexes'], priorities)
+        #print(q_target)
 
         loss = self.q_eval.loss(q_target, q_pred).to(self.q_eval.device)
+        w = T.unsqueeze(T.Tensor(sample['weights']), 1).to(self.q_eval.device)
+
+        loss = (loss * w).mean()
+
+        self.q_eval.optimiser.zero_grad()
+        #loss = loss.to(self.q_eval.device)
         loss.backward()
+
+        priorities = get_priorities(q_pred, q_target)
+        # print(priorities)
+        self.memory.update_priorities(sample['indexes'], priorities)
 
         #T.nn.utils.clip_grad_norm_(self.q_eval.parameters(), max_norm=0.5)
 
         self.q_eval.optimiser.step()
         self.learn_step_counter += 1
-        self.dec_epsilon()
+
+        # self.dec_epsilon
+        # self.inc_beta # beta tends to 1 as training goes on
 
         return loss
 
@@ -151,14 +172,12 @@ class Agent():
             V_s_eval, A_s_eval = self.q_eval.forward(states_)
 
             curr_q = T.add(V_s, (A_s - A_s.mean(dim=1, keepdim=True)))[idxs, actions]
-
-            # future q
             next_q = T.add(V_s_,(A_s_ - A_s.mean(dim=1, keepdim=True)))
 
             next_eval = T.add(V_s_eval, (A_s_eval - A_s_eval.mean(dim=1, keepdim=True)))
 
             max_actions = T.argmax(next_eval, dim=1)
-
+            print(max_actions)
             # apply mask for terminates networks
             next_eval[term] = -10.0
 

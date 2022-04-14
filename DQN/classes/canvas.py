@@ -79,39 +79,43 @@ class Canvas:
                 # Is the grid cell tiled ?
                 if (self.maze[rows][cols] == 0):
                     self.drawSquareCell(
-                        origin[0] + (celldimY * rows)
+                        origin[0] + (celldimX * cols)
                         + cellBorder + lw / 2,
-                        origin[1] + (celldimX * cols)
+                        origin[1] + (celldimY * rows)
                         + cellBorder + lw / 2,
+
                         celldimX, celldimY, col=BLACK)
                 if cols == 199 and rows == 199:
                     self.drawSquareCell(
-                        origin[0] + (celldimY * rows)
+                        origin[0] + (celldimX * cols)
                         + cellBorder + lw / 2,
-                        origin[1] + (celldimX * cols)
+                        origin[1] + (celldimY * rows)
                         + cellBorder + lw / 2,
+
                         celldimX, celldimY, col=BLUE)
 
-    def step(self, visible, idx, path, acts):
+    def step(self, visible, idx, path, acts, score, steps, walls):
         """Run the pygame environment for displaying the maze structure and visible (local) environment of actor
         """
         self.get_event()
-        self.set_visible(visible, idx, path)
+        self.set_visible(visible, idx, path, score)
 
         self.surface.fill(GREY)
         self.drawSquareGrid(origin, mazeWH)
 
         self.placeCells()
-        self.draw_visible(acts)
+        self.draw_visible(acts, steps, walls)
         pygame.display.update()
         self.step_cntr += 1
 
-    def set_visible(self, visible, idx, path):
+    def set_visible(self, visible, idx, path, score):
         self.vis = visible
         self.actor = idx
         self.path = path
+        self.pathlen = len(path)
+        self.score = score
 
-    def draw_visible(self, acts):
+    def draw_visible(self, acts, steps, walls):
         """Draw the visible environment around the actor
 
         Notes
@@ -135,11 +139,25 @@ class Canvas:
         #self.visible = self.vis
         for s in self.path:
             self.drawSquareCell(
-                origin[0] + (celldimY * s[1])
+                origin[0] + (celldimX * s[0])
                 + lw / 2,
-                origin[1] + (celldimX * s[0])
+                origin[1] + (celldimY * s[1])
                 + lw / 2,
+
                 celldimX, celldimY, col=DARKGREEN)
+
+        self.surface.blit(self.font.render('Score: ' + str(float('%.2f' % self.score)) + '/800', True, (0, 0, 0)),
+                          (1100,
+                           100))
+        self.surface.blit(self.font.render('Len: ' + str(self.pathlen), True, (0, 0, 0)),
+                          (1100 ,
+                           130))
+        self.surface.blit(self.font.render('Steps: ' + str(steps), True, (0, 0, 0)),
+                          (1100,
+                           160))
+        self.surface.blit(self.font.render('Walls: ' + str(walls), True, (0, 0, 0)),
+                          (1100,
+                           190))
 
         if acts != []:
             acts = acts.data.cpu().numpy()[0]
@@ -153,33 +171,30 @@ class Canvas:
 
                 if row == 1 and col == 1:
                     self.drawSquareCell(
-                        origin[0] + (celldimY * r)
+                        origin[0] + (celldimX * c)
                         + lw / 2,
-                        origin[1] + (celldimX * c)
+                        origin[1] + (celldimY * r)
                         + lw / 2,
+
                         celldimX, celldimY, col=GREEN)
-                    self.drawSquareCell(
-                        1200
-                        + 8,
-                        300
-                        + 8,
-                        40, 40, col=GREEN)
+
                 else:
                     if self.vis[row][col][1] > 0:
-
-                        self.drawSquareCell(
-                            origin[0] + (celldimY * r)
-                            + lw / 2,
-                            origin[1] + (celldimX * c)
-                            + lw / 2,
-                            celldimX, celldimY, col=RED)
-
-                        self.drawSquareCell(
-                            1200 + (40*(row - 1))
-                            + 8,
-                            300 + (40*(col - 1))
-                            + 8,
-                            40, 40, col=RED)
+                        pass
+                        # self.drawSquareCell(
+                        #     origin[0] + (celldimX * c)
+                        #     + lw / 2,
+                        #     origin[1] + (celldimY * r)
+                        #     + lw / 2,
+                        #
+                        #     celldimX, celldimY, col=RED)
+                        #
+                        # self.drawSquareCell(
+                        #     300 + (40 * (col - 1))
+                        #     + 8,
+                        #     1200 + (40*(row - 1))
+                        #     + 8,
+                        #     40, 40, col=RED)
                     elif self.vis[row][col][0] == 0:
                         self.drawSquareCell(
                             1200 + (40 * (row - 1))
@@ -188,27 +203,6 @@ class Canvas:
                             + 8,
                             40, 40, col=DARKGREY)
 
-                if acts != []:
-                    if (row - 1) < 0 and col == 1:
-                        self.surface.blit(self.font.render(str(float('%.3g' % acts[1])), True, (200, 200, 200)),
-                                          (1200 + (40 * (row - 1))+ 9,
-                                            300 + (40 * (col - 1))+ 9))
-                    elif (row - 1) > 0 and col == 1:
-                        self.surface.blit(self.font.render(str(float('%.3g' % acts[4])), True, (200, 200, 200)),
-                                          (1200 + (40 * (row - 1))+ 9,
-                                            300 + (40 * (col - 1))+ 9))
-                    elif row == 1 and (col - 1) < 0:
-                        self.surface.blit(self.font.render(str(float('%.3g' % acts[2])), True, (200, 200, 200)),
-                                          (1200 + (40 * (row - 1))+ 9,
-                                            300 + (40 * (col - 1))+ 9))
-                    elif row == 1 and (col - 1) > 0:
-                        self.surface.blit(self.font.render(str(float('%.3g' % acts[1])), True, (200, 200, 200)),
-                                          (1200 + (40 * (row - 1))+ 9,
-                                            300 + (40 * (col - 1))+ 9))
-                    elif row == 1 and col == 1:
-                        self.surface.blit(self.font.render(str(float('%.3g' % acts[1])), True, (0, 0, 0)),
-                                          (1200 + (40 * (row - 1))+ 9,
-                                            300 + (40 * (col - 1))+ 9))
 
     def get_event(self):
         for event in pygame.event.get():

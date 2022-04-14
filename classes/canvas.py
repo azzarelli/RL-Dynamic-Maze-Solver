@@ -26,6 +26,8 @@ class Canvas:
         self.cntr = 0
 
         self.maze = load_maze()
+        self.maze = self.maze.T
+        #print(type(self.maze))
         self.shape = 201
 
         pygame.init()
@@ -136,10 +138,8 @@ class Canvas:
         #self.visible = self.vis
         for s in self.path:
             self.drawSquareCell(
-                origin[0] + (celldimY * s[1])
-                + lw / 2,
-                origin[1] + (celldimX * s[0])
-                + lw / 2,
+                origin[0] + (celldimX * s[0]) + lw / 2,
+                origin[1] + (celldimY * s[1]) + lw / 2,
                 celldimX, celldimY, col=DARKGREEN)
         if acts != []:
             # acts = acts.data.cpu().numpy()[0]
@@ -148,7 +148,7 @@ class Canvas:
             elif action == 2:action_str = 'Left'
             elif action == 3:action_str = 'Down'
             elif action == 4:action_str = 'Right'
-        else:action_str = 'Random'
+        else: action_str = 'Random'
 
 
         for row in range(3):
@@ -156,68 +156,55 @@ class Canvas:
                 c = self.actor[0] + (col - 1)
                 r = self.actor[1] + (row - 1)
 
-
-
                 if row == 1 and col == 1:
                     self.drawSquareCell(
-                        origin[0] + (celldimY * r)
-                        + lw / 2,
-                        origin[1] + (celldimX * c)
-                        + lw / 2,
+                        origin[0] + (celldimX * c)+ lw / 2,
+                        origin[1] + (celldimY * r)+ lw / 2,
                         celldimX, celldimY, col=GREEN)
                     self.drawSquareCell(
-                        1200
-                        + 8,
-                        300
-                        + 8,
+                        1200+ 8,
+                        300+ 8,
                         40, 40, col=GREEN)
                 else:
                     if self.vis[row][col][1] > 0:
-
-                        self.drawSquareCell(
-                            origin[0] + (celldimY * r)
-                            + lw / 2,
-                            origin[1] + (celldimX * c)
-                            + lw / 2,
-                            celldimX, celldimY, col=RED)
-
-                        self.drawSquareCell(
-                            1200 + (40*(row - 1))
-                            + 8,
-                            300 + (40*(col - 1))
-                            + 8,
-                            40, 40, col=RED)
+                        pass
+                        # self.drawSquareCell(
+                        #     origin[0] + (celldimX * c) + lw / 2,
+                        #     origin[1] + (celldimY * r)+ lw / 2,
+                        #     celldimX, celldimY, col=RED)
+                        #
+                        # self.drawSquareCell(
+                        #     1200 + (40 * (col - 1)) + 8,
+                        #     300 + (40*(row - 1))+ 8,
+                        #     40, 40, col=RED)
                     elif self.vis[row][col][0] == 0:
                         self.drawSquareCell(
-                            1200 + (40 * (row - 1))
-                            + 8,
-                            300 + (40 * (col - 1))
-                            + 8,
+                            1200 + (40 * (col - 1)) + 8,
+                            300 + (40 * (row - 1))+ 8,
                             40, 40, col=DARKGREY)
                     elif (c, r) in self.path:
                         self.drawSquareCell(
-                            1200 + (40 * (row - 1))
-                            + 8,
-                            300 + (40 * (col - 1))
-                            + 8,
+                            1200 + (40 * (col - 1)) + 8,
+                            300 + (40 * (row - 1))+ 8,
                             40, 40, col=DARKGREEN)
 
+        for row in range(3):
+            for col in range(3):
                 if acts != []:
-
                     if (row - 1) < 0 and col == 1:
-                        self.surface.blit(self.font.render(str(float('%.2f' % acts[1])), True, (200, 200, 200)),
-                                          (1200 + (40 * (row - 1))+ 9,
-                                            300 + (40 * (col - 1))+ 9))
-                    elif (row - 1) > 0 and col == 1:
-                        self.surface.blit(self.font.render(str(float('%.2f' % acts[3])), True, (200, 200, 200)),
-                                          (1200 + (40 * (row - 1))+ 9,
-                                            300 + (40 * (col - 1))+ 9))
-                    elif row == 1 and (col - 1) < 0:
                         self.surface.blit(self.font.render(str(float('%.2f' % acts[2])), True, (200, 200, 200)),
                                           (1200 + (40 * (row - 1))+ 9,
                                             300 + (40 * (col - 1))+ 9))
-                    elif row == 1 and (col - 1) > 0:
+                    elif (row - 1) > 0 and col == 1:
                         self.surface.blit(self.font.render(str(float('%.2f' % acts[4])), True, (200, 200, 200)),
+                                          (1200 + (40 * (row - 1))+ 9,
+                                            300 + (40 * (col - 1))+ 9))
+                    elif row == 1 and (col - 1) < 0:
+                        self.surface.blit(self.font.render(str(float('%.2f' % acts[1])), True, (200, 200, 200)),
+                                          (1200 + (40 * (row - 1))+ 9,
+                                            300 + (40 * (col - 1))+ 9))
+                    elif row == 1 and (col - 1) > 0:
+                        self.surface.blit(self.font.render(str(float('%.2f' % acts[3])), True, (200, 200, 200)),
                                           (1200 + (40 * (row - 1))+ 9,
                                             300 + (40 * (col - 1))+ 9))
                     elif row == 1 and col == 1:

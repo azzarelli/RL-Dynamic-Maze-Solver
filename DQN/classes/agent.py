@@ -72,7 +72,7 @@ class Agent():
 
         # Start AD
         self.q_eval.optimiser.zero_grad()
-        self.replace_target_network()
+
 
         # sample memory
         state, actions, reward, state_, term = \
@@ -97,12 +97,11 @@ class Agent():
 
         q_target = rewards_btch + self.gamma * q_next[idxs, max_actions]
 
-        print(q_target, q_pred)
         loss = self.q_eval.loss(q_target, q_pred).to(self.q_eval.device)
 
         loss.backward()
         self.q_eval.optimiser.step()
         self.learn_step_counter += 1
-        self.dec_epsilon()
+        # self.dec_epsilon()
 
         return loss.item()

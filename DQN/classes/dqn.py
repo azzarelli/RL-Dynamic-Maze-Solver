@@ -22,7 +22,7 @@ class DQN(nn.Module):
         self.sm = nn.Softmax(dim=1)
 
         self.optimiser = optim.Adam(self.parameters(), lr=lr)
-        self.loss = nn.MSELoss()
+        self.loss = nn.L1Loss()
 
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
         print(f'... {name} Network training on {self.device} ...')

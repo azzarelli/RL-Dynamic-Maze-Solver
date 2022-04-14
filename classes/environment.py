@@ -13,7 +13,6 @@ spaces.
 import time
 from lib.read_maze import get_local_maze_information
 import numpy as np
-from PIL import Image
 
 # We set the action-space directory to access
 global action_dir
@@ -32,11 +31,11 @@ action_dir = {"0": {"id":'stay',
 global rewards_dir
 rewards_dir = {"onwards": +1.,
               "backwards":+1.,
-              "visited":-.5,
+              "visited":-2.,
               "blockedin":+1.,
               "fire":-800.,
               "wall":-1.,
-              "stay":-0.,
+              "stay":-1,
               }
 
 
@@ -75,19 +74,19 @@ class Environment:
         l1, l2, l3 = [], [], []
         for l in range(len(loc)):
             for j in range(len(loc[l])):
-                if loc[l][j][0] == 0:
-                    l1.append(1)
-                else:
-                    l1.append(0)
-                l2.append(loc[l][j][1])
-
                 x_ = x + j - 1
                 y_ = y + l - 1
 
-                if (x_, y_) in self.actorpath:
-                    l3.append(1)
+                if loc[l][j][0] == 0:
+                    l1.append(0)
+                elif (x_, y_) in self.actorpath:
+                    l1.append(-1)
                 else:
-                    l3.append(0)
+                    l1.append(1)
+
+                # Dynamic element
+                # l2.append(loc[l][j][1])
+
         if self.actor_pos not in self.actorpath:
             self.visit_cntr = 0
             self.actorpath.append(self.actor_pos)
@@ -95,7 +94,7 @@ class Environment:
             self.visit_cntr += 1
 
 
-        self.observation = l1 + l2 + l3 + [self.actor_pos[0], self.actor_pos[1]]
+        self.observation = l1 + [self.actor_pos[0], self.actor_pos[1]]
         return self.observation
 
     @property
@@ -129,7 +128,7 @@ class Environment:
         4 - right
 
         """
-        # time.sleep(10) # delay for time animation
+        time.sleep(10) # delay for time animation
         self.step_cntr += 1 # increment time
         global action_dir # Fetch action directory containing the properties of each action w.r.t environment
         act_key = str(action)
@@ -142,9 +141,9 @@ class Environment:
             print('I became an old man and dies in this maze...')
             return self.observe_environment, -1., True, {} # terminate
         # If we spent too long vising places we have already been
-        # if self.visit_cntr > 20:
-        #     print('Visisted Timeout')
-        #     return self.observe_environment, -800., True, {}  # terminate
+        if self.visit_cntr > 50:
+            print('Visisted Timeout')
+            return self.observe_environment, -2., True, {}  # terminate
 
         obsv_mat = self.get_local_matrix # get prior position
         x, y = self.actor_pos
@@ -152,27 +151,29 @@ class Environment:
         x_loc, y_loc = (1 + x_inc, 1 + y_inc) # Update Local Position
 
         # Check to see if we are either blocked in as a result of prior path, wall or fire (if so -> reward staying)
-        is_blocked = True
-        for i, o in enumerate(obsv_mat):
-            for j, p in enumerate(o):
-                if (i,j) in [(0,1), (1,0), (1,2), (2,1)]:
-                    pos = (x + j - 1, y + i -1)
-                    if p[0] == 1 and p[1] == 0:
-                        is_blocked = False
-        if action_dir[act_key]['id'] == 'stay' and is_blocked : # Reward staying if path is blocked
-            return self.observe_environment, rewards_dir['blockedin'], False, {}
+        # is_blocked = True
+        # for i, o in enumerate(obsv_mat):
+        #     for j, p in enumerate(o):
+        #         if (i,j) in [(0,1), (1,0), (1,2), (2,1)]:
+        #             pos = (x + j - 1, y + i -1)
+        #             if p[0] == 1 and p[1] == 0:
+        #                 is_blocked = False
+        # if action_dir[act_key]['id'] == 'stay' and is_blocked : # Reward staying if path is blocked
+        #     return self.observe_environment, rewards_dir['blockedin'], False, {}
 
 
-        elif action_dir[act_key]['id'] == 'stay': # if we stay for no reason then penalise
+        if action_dir[act_key]['id'] == 'stay': # if we stay for no reason then penalise
             self.stay_cntr += 1
             return self.observe_environment, rewards_dir['stay'], False, {}
 
         if obsv_mat[y_loc][x_loc][0] == 0: # check for a wall
             self.wall_cntr += 1
             return self.observe_environment, rewards_dir['wall'], False, {} # walking into walls is fatal
-        if obsv_mat[y_loc][x_loc][1] > 0: # check for a fire
-            self.wall_cntr += 1
-            return self.observe_environment, rewards_dir['fire'], True, {}
+
+        # Dynamic fire death
+        # if obsv_mat[y_loc][x_loc][1] > 0: # check for a fire
+        #     self.wall_cntr += 1
+        #     return self.observe_environment, rewards_dir['fire'], True, {}
 
         # So if we do successfully move
         self.actor_pos = new_pos = (x + x_inc, y + y_inc) # new global position if we move into a free space

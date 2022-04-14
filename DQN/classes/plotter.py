@@ -13,7 +13,7 @@ class Plotter:
         self.stay_cntrs = []
         self.visit_cntrs = []
 
-    def data_in(self, score, wall_cntr=-1, stay_cntr=-1, visit_cntr=-1):
+    def data_in(self, score=-1000, wall_cntr=-1, stay_cntr=-1, visit_cntr=-1, path_len=-1):
         self.scores.append(score)
         self.scores_avg.append(np.mean(self.scores[-100:]))
         if wall_cntr > -1:
@@ -22,6 +22,7 @@ class Plotter:
             self.stay_cntrs.append(stay_cntr)
         if visit_cntr > -1:
             self.visit_cntrs.append(visit_cntr)
+
 
     @property
     def show(self):

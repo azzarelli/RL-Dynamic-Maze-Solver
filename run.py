@@ -9,24 +9,25 @@ Notes
 from lib.read_maze import load_maze
 
 from classes.agent import Agent
-from classes.environment import Environment
+from classes.static_environment import Environment
 from classes.canvas import Canvas
 
 from classes.plotter import Plotter
 
 
 def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
-        gamma=0.9, episodes=100, netname='default.pt', epsilon_min=0.01, batch_size=128):
+        gamma=0.9, episodes=100, netname='default.pt', epsilon_min=0.01, ep_dec = 1e-4, batch_size=128):
 
-    name = 'l1_512-l2_1024'
+    name = 'epdec'+str(ep_dec)
 
+    print(epsilon)
     # Default (Fixed) Parameters
     epsilon_min = epsilon_min
-    epsilon_dec = 1e-4
-    input_dims = [29]
+    epsilon_dec = ep_dec
+    input_dims = [20]
     output_dims = 5
 
-    replace_testnet = 20
+    replace_testnet = 1
     memsize = 10000 # https://arxiv.org/abs/1712.01275
     batch_size = batch_size
 
@@ -73,9 +74,14 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
                 if canv_chck:
                     canv.step(env.obs2D.copy(), env.actor_pos, env.actorpath, acts.data.cpu().numpy(), action)
 
+            agent.step_params()
+
+            if i % replace_testnet == 0:
+                agent.replace_target_network()
             plt.data_in(score, wall_cntr=env.wall_cntr, stay_cntr=env.stay_cntr,
                         visit_cntr=env.visit_cntr, path_cntr=path)
-            print(f'Ep {i}, {loss} score {score}, avg {plt.scores_avg[-1]}, epsilon {agent.epsilon}')
+
+            print(f'Ep {i}, {loss} score {score}, epsilon {agent.epsilon}, beta {agent.beta}')
             print(f'    Path Len {path} : Stayed {env.stay_cntr} : Walls {env.wall_cntr}')
             # Save NN every 10 its
             if i > 20 and i % 20 == 0:

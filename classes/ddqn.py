@@ -14,22 +14,25 @@ class DDQN(nn.Module):
         self.save_file = os.path.join(self.save_dir, name)
 
         self.features = nn.Sequential( # Convolutional layer
-            nn.Linear(*input_dims, 512),
-            nn.ReLU(),
-            nn.Linear(512, 1024),
+            nn.Linear(*input_dims, 256),
             nn.ReLU()
-
             )
 
         self.value_stream = nn.Sequential(
-            nn.Linear(1024, 1)
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Linear(256, 1)
             )
         self.advantage_stream = nn.Sequential(
-            nn.Linear(1024, n_actions)
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Linear(256, n_actions)
             )
 
         self.optimiser = optim.Adam(self.parameters(), lr=lr)
-        self.loss = nn.HuberLoss()
+        self.loss =  nn.MSELoss()
+        # self.loss = nn.HuberLoss()
+        # self.loss = nn.L1Loss()
 
 
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')

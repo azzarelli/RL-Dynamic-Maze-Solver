@@ -12,6 +12,7 @@ spaces.
 """
 import time
 from lib.read_maze import get_local_maze_information
+import numpy as np
 
 # We set the action-space directory to access
 global action_dir
@@ -28,25 +29,24 @@ action_dir = {"0": {"id":'stay',
               }
 
 global rewards_dir
-rewards_dir = {"onwards": -.9,
-              "backwards":-.9,
-              "wall":-2.,
+rewards_dir = {"move": +1.,
+              "visited":-1.,
+              "wall":-1.,
               "stay":-1.,
-              "visited":-1.
               }
 
 
 class Environment:
     def __init__(self):
         self.step_cntr = 0
+        self.wall_cntr = 0
+        self.stay_cntr = 0
+        self.visit_cntr = 0
+
         self.actor_pos = (1, 1)
         self.actorpath = [self.actor_pos]
         self.observation = self.observe_environment  # set up empty state
         self.obs2D = []
-
-        self.wall_cntr = 0
-        self.stay_cntr = 0
-        self.visit_cntr = 0
 
 
 
@@ -66,28 +66,34 @@ class Environment:
     @property
     def observe_environment(self):
         x, y = self.actor_pos
-
-
         loc = get_local_maze_information(y, x)
         self.obs2D = loc.copy()
         l1, l2, l3 = [], [], []
         for l in range(len(loc)):
             for j in range(len(loc[l])):
-                l1.append(loc[l][j][0])
-
                 x_ = x + j - 1
                 y_ = y + l - 1
 
-                # if (x_, y_) in self.actorpath:
-                #     l2.append(1)
-                # else:
-                #     l2.append(0)
-                #     self.actorpath.append(self.actor_pos)
+                if loc[l][j][0] == 0:
+                    l1.append(0)
+                else:
+                    l1.append(1)
+
+                if loc[l][j][0] == 0:
+                    l2.append(0)
+                elif (x_, y_) in self.actorpath:
+                    l2.append(0)
+                else:
+                    l2.append(1)
+
+        if self.actor_pos not in self.actorpath:
+            self.visit_cntr = 0
+            self.actorpath.append(self.actor_pos)
+        else:
+            self.visit_cntr += 1
 
 
-        self.observation = l1 + [self.actor_pos[0], self.actor_pos[1]] + [self.actorpath[-1][0], self.actorpath[-1][1]]
-        if (x,y) not in self.actorpath:
-            self.actorpath.append((x,y))
+        self.observation = l1 + l2 + [self.actor_pos[0], self.actor_pos[1]] # , self.step_cntr ]# + [prior_pos[0], prior_pos[1]]
         return self.observation
 
     @property
@@ -121,9 +127,7 @@ class Environment:
         4 - right
 
         """
-        #time.sleep(5) # delay for time animation
         self.step_cntr += 1 # increment time
-
         global action_dir # Fetch action directory containing the properties of each action w.r.t environment
         act_key = str(action)
         global rewards_dir # Fetch reward directory
@@ -131,9 +135,13 @@ class Environment:
         x_inc, y_inc = action_dir[act_key]['move'] # fetch movement from position (1,1)
 
         # If too much time elapsed you die in maze :( (terminate maze at this point)
-        if score < -100:
+        if self.step_cntr > 800:
             print('I became an old man and dies in this maze...')
             return self.observe_environment, -1., True, {} # terminate
+        # If we spent too long vising places we have already been
+        # if self.visit_cntr > 50:
+        #     print('Visisted Timeout')
+        #     return self.observe_environment, -2., True, {}  # terminate
 
         obsv_mat = self.get_local_matrix # get prior position
         x, y = self.actor_pos
@@ -146,7 +154,7 @@ class Environment:
 
         if obsv_mat[y_loc][x_loc][0] == 0: # check for a wall
             self.wall_cntr += 1
-            return self.observe_environment, rewards_dir['wall'], False, {}
+            return self.observe_environment, rewards_dir['wall'], False, {} # walking into walls is fatal
 
         # So if we do successfully move
         self.actor_pos = new_pos = (x + x_inc, y + y_inc) # new global position if we move into a free space
@@ -154,15 +162,9 @@ class Environment:
         if new_pos == (199, 199):
             return self.observation, 100., True, {}
 
-        x_ = x + x_inc
-        y_ = y + y_inc
-
-        if (x_, y_) == self.actorpath[-1]:
+        # Have we visited this spot already?
+        if self.actor_pos in self.actorpath:
             return self.observe_environment, rewards_dir['visited'], False, {}
 
-        # Are we moving towars the goal?
-        if x_inc > 0 or y_inc > 0:
-            return self.observe_environment, rewards_dir['onwards']*float(len(self.actorpath)**-1), False, {}
-
         # finally our only choice is to move away from goal
-        return self.observe_environment, rewards_dir['backwards']*float(-len(self.actorpath)**-1), False, {}
+        return self.observe_environment, rewards_dir['move'], False, {}

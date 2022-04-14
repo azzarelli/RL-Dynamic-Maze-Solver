@@ -4,10 +4,10 @@ import numpy as np
 
 DATA = []
 
-changed = ['lr0.0001ep0.9g0.7epmin0.1.json.json',
-           'lr0.0001ep0.9g0.7epmin0.2.json.json',
-           'lr0.0001ep0.9g0.7epmin0.3.json.json',
-           'lr0.0001ep0.9g0.7epmin0.05.json.json'
+changed = ['epdec0.1.json',
+           'epdec0.01.json',
+           'epdec0.001.json',
+           'epdec0.0001.json'
            ]
 
 def moving_average(a, n=3) :
