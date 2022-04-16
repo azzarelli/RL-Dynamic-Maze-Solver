@@ -53,15 +53,17 @@ class Environment:
         self.actor_pos = (1, 1)
         self.actorpath = [self.actor_pos]
         self.observation_map = [[-1 for i in range(200)] for j in range(200)]
-        self.observation_size = 40
+        self.observation_size = 10
+        self.not_observed = 0
         self.observation = self.observe_environment  # set up empty state
+        self.observation_2 = self.observation.copy()
         self.obs2D = []
 
 
 
     @property
     def reset(self):
-        self.observation_size = 20
+        self.observation_size = 10
 
         self.step_cntr = 0
         self.wall_cntr = 0
@@ -72,8 +74,9 @@ class Environment:
         self.actorpath = [self.actor_pos]
 
         self.observation_map = [[-1 for i in range(200)] for j in range(200)]
-
+        self.not_observed = 0
         self.observation = self.observe_environment  # set up empty state
+        self.observation_2 = self.observation.copy()
         return self.observation
 
     transform = transforms.Compose([
@@ -98,7 +101,7 @@ class Environment:
         img = Image.fromarray(obsv_, 'RGB')
         img = ImageOps.grayscale(img)
         # Example of observation
-        img.save('observation.png')
+        # img.save('observation.png')
 
         #img = self.transform(img)
 
@@ -169,8 +172,17 @@ class Environment:
         # from matplotlib import pyplot as plt
         # plt.imshow(obsv, interpolation='nearest')
         # plt.show()
-        self.observation = l1  # + [self.actor_pos[0], self.actor_pos[1]] # , self.step_cntr ]# + [prior_pos[0], prior_pos[1]]
-        return l1
+        if self.not_observed != 0:
+            l2 = self.observation_2.copy()
+            self.not_observed +=1
+
+            self.observation_2 = self.observation.copy()
+            self.observation = l1  # + [self.actor_pos[0], self.actor_pos[1]] # , self.step_cntr ]# + [prior_pos[0], prior_pos[1]]
+        else:
+            self.observation = l1
+            self.observation_2 = self.observation.copy()
+            l2 = self.observation_2
+        return l1 + l2
 
     @property
     def get_actor_pos(self):

@@ -147,4 +147,4 @@ class Agent():
         for idx, td_error in zip(idxs, loss.cpu().detach().numpy()):
             self.memory.update_priorities(idx, td_error)
 
-        return loss
+        return lossmean

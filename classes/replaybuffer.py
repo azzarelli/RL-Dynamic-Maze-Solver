@@ -174,7 +174,7 @@ class PrioritizedBuffer:
             next_state_batch.append(next_state)
             done_batch.append(done)
 
-        return state_batch, action_batch, reward_batch, next_state_batch, done_batch, IS_weights, batch_idx
+        return state_batch, action_batch, np.array(reward_batch), next_state_batch, done_batch, IS_weights, batch_idx
 
     def update_priorities(self, idx, td_error):
         priority = td_error ** self.alpha
