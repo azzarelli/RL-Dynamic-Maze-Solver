@@ -53,8 +53,10 @@ class Agent():
             self.q_next.load_state_dict(self.q_eval.state_dict())
 
     def dec_epsilon(self):
-        self.epsilon = self.epsilon - self.eps_dec \
-            if self.epsilon > self.eps_min else self.eps_min
+        if self.epsilon > 0.6:
+            self.epsilon = self.epsilon - self.eps_dec
+        else:
+            self.epsilon = self.epsilon - (self.eps_dec/10) if self.epsilon > self.eps_min else self.eps_min
 
     def save_models(self):
         self.q_eval.save_()

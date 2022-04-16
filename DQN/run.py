@@ -26,7 +26,7 @@ def run(train_chck=True, chckpt=False, lr=0.01, epsilon=0.9,
 
     replace_testnet = 1
     memsize = 100000 # https://arxiv.org/abs/1712.01275
-    batch_size = 128
+    batch_size = 64
 
     # CER buffer
     parser = argparse.ArgumentParser(description='')
@@ -78,6 +78,6 @@ def run(train_chck=True, chckpt=False, lr=0.01, epsilon=0.9,
         print(f'Ep {i}, {loss} score {score}, avg {plt.scores_avg[-1]}, epsilon {agent.epsilon}, lr {lr}')
         print(f'  {len(env.actorpath)}  Stayed {env.stay_cntr} : Walls {env.wall_cntr}')
         # Save NN every 10 its
-        if i > 10 and i % 10 == 0:
+        if i > 1 and i % 1 == 0:
             agent.save_models()
             plt.live_plot()

@@ -13,7 +13,9 @@ class DQN(nn.Module):
 
 
         self.feature_stream = nn.Sequential( # Convolutional layer
-            nn.Linear(*input_dims, 256),
+            nn.Linear(*input_dims, 128),
+            nn.ReLU(),
+            nn.Linear(128, 256),
             nn.ReLU(),
             nn.Linear(256, 256),
             nn.ReLU(),
@@ -22,7 +24,7 @@ class DQN(nn.Module):
         self.sm = nn.Softmax(dim=1)
 
         self.optimiser = optim.Adam(self.parameters(), lr=lr)
-        self.loss = nn.L1Loss()
+        self.loss = nn.HuberLoss()
 
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
         print(f'... {name} Network training on {self.device} ...')
