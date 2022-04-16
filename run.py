@@ -9,28 +9,30 @@ Notes
 from lib.read_maze import load_maze
 
 from classes.agent import Agent
-from classes.static_environment import Environment
+from classes.partially_environment import Environment
 from classes.canvas import Canvas
 
 from classes.plotter import Plotter
 
+import torchvision
+import torchvision.transforms as transforms
 
 def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
-        gamma=0.9, episodes=100, netname='default.pt', epsilon_min=0.01, ep_dec = 1e-4, batch_size=128):
+        gamma=0.9, episodes=100, netname='default.pt', epsilon_min=0.01, ep_dec = 1e-4, batch_size=128, beta_inc=0.1):
 
-    name = 'epdec'+str(ep_dec)
+    name = 'probe'
 
-    print(epsilon)
     # Default (Fixed) Parameters
     epsilon_min = epsilon_min
     epsilon_dec = ep_dec
-    input_dims = [20]
+    input_dims = [400]
     output_dims = 5
 
-    replace_testnet = 1
-    memsize = 10000 # https://arxiv.org/abs/1712.01275
+    replace_testnet = 3
+    memsize = 100000 # https://arxiv.org/abs/1712.01275
     batch_size = batch_size
 
+    env = Environment()
     agent = Agent(gamma=gamma, epsilon=epsilon, lr=lr,
                   input_dims=input_dims, n_actions=output_dims, mem_size=memsize, eps_min=epsilon_min,
                   batch_size=batch_size, eps_dec=epsilon_dec, replace=replace_testnet, name=netname)
@@ -43,7 +45,7 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
     if chckpt:
         agent.load_models()
 
-    env = Environment()
+
 
     if train_chck:
 
@@ -55,7 +57,7 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
             observation = env.reset
 
             if canv_chck:
-                canv.set_visible(env.get_local_matrix.copy(), env.actor_pos, [])
+                canv.set_visible(env.loc.copy(), env.actor_pos, [])
 
             score = 0
             while not done:
@@ -65,16 +67,16 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
                 path = len(env.actorpath)
 
                 score += reward
-                agent.store_transition(observation, observation_, reward, action,
-                                       int(done))
+                agent.store_transition(observation, observation_, reward, action, int(done))
 
                 loss = agent.learn()
                 observation = observation_
 
                 if canv_chck:
-                    canv.step(env.obs2D.copy(), env.actor_pos, env.actorpath, acts.data.cpu().numpy(), action)
+                    canv.step(env.obs2D.copy(), env.actor_pos, env.actorpath, acts.data.cpu().numpy(), action,
+                              score, reward, env.step_cntr, i, env.wall_cntr, env.visit_cntr, env.obs2D)
 
-            agent.step_params()
+            agent.step_params(beta_inc)
 
             if i % replace_testnet == 0:
                 agent.replace_target_network()
@@ -96,21 +98,3 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
 
         # Need canvas, prior network and testing checked off
         print('...starting testing...')
-        for i in range(episodes):
-            done = False
-            observation = env.reset
-
-            canv.set_visible(env.get_local_matrix.copy(), env.actor_pos, [])
-
-            score = 0
-            while not done:
-                action, acts = agent.greedy_epsilon(observation)
-                observation_, reward, done, info = env.step(action, score)
-
-                score += reward
-                agent.store_transition(observation, observation_, reward, action,
-                                       int(done))
-
-                canv.step(env.obs2D.copy(), env.actor_pos, env.actorpath, acts)
-
-            print(f'Ep {i}, score {score}, lr {lr}')
