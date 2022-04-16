@@ -17,11 +17,11 @@ action_dir = {"0": {"id":'stay',
               }
 
 global rewards_dir
-rewards_dir = {"move": +1.,
+rewards_dir = {"move": +.004,
               "visited":-1.,
-              "wall":-2.,
+              "wall":-1.,
               "stay":-1.,
-              "deadend":-200.
+              "deadend":-100.
               }
 
 class CustomEnv(gym.Env):
@@ -44,20 +44,19 @@ class CustomEnv(gym.Env):
         l1, l2, l3 = [], [], []
         for l in range(len(loc)):
             for j in range(len(loc[l])):
-                x_ = x + j - 1
-                y_ = y + l - 1
+                if (l, j) in [(0,1), (1,0), (2,1), (1,2)]:
+                    x_ = x + j - 1
+                    y_ = y + l - 1
 
-                if loc[l][j][0] == 0:
-                    l1.append(0)
-                else:
-                    l1.append(1)
+                    if loc[l][j][0] == 0:
+                        l1.append(0)
+                    else:
+                        l1.append(1)
 
-                if loc[l][j][0] == 0:
-                    l2.append(0)
-                elif (x_, y_) in self.actorpath:
-                    l2.append(0)
-                else:
-                    l2.append(1)
+                    if (x_, y_) in self.actorpath:
+                        l2.append(0)
+                    else:
+                        l2.append(1)
 
         if self.actor_pos not in self.actorpath:
             self.visit_cntr = 0
@@ -124,20 +123,20 @@ class CustomEnv(gym.Env):
 
 
         # Check to see if we are either blocked in as a result of prior path, wall or fire (if so -> reward staying)
-        # is_blocked = False
-        # path = 0
-        # for i, o in enumerate(obsv_mat):
-        #     for j, p in enumerate(o):
-        #         if (i,j) in [(0,1), (1,0), (1,2), (2,1)]:
-        #             pos = (x + j - 1, y + i - 1)
-        #             if p[0] == 1:
-        #                 path += 1
-        # if path == 1:
-        #     is_blocked = True
-        # if is_blocked : # Reward staying if path is blocked
-        #     print('Deadend')
-        #     return self.observe_environment, rewards_dir['deadend'], True, {}
-        #
+        is_blocked = False
+        path = 0
+        for i, o in enumerate(obsv_mat):
+            for j, p in enumerate(o):
+                if (i,j) in [(0,1), (1,0), (1,2), (2,1)]:
+                    pos = (x + j - 1, y + i - 1)
+                    if p[0] == 1:
+                        path += 1
+        if path == 1:
+            is_blocked = True
+        if is_blocked : # Reward staying if path is blocked
+            print('Deadend')
+            return self.observe_environment, rewards_dir['deadend'], True, {}
+
 
         # So if we do successfully move
         self.actor_pos = new_pos = (x + x_inc, y + y_inc) # new global position if we move into a free space
@@ -147,7 +146,7 @@ class CustomEnv(gym.Env):
 
         # Have we visited this spot already?
         if self.actor_pos in self.actorpath:
-            return self.observe_environment, rewards_dir['visited'], False, {}
+            return self.observe_environment, rewards_dir['visited'] - (0.1 * len(self.actorpath)), False, {}
 
         # finally our only choice is to move away from goal
         return self.observe_environment, rewards_dir['move'] + (0.1 * len(self.actorpath)), False, {}

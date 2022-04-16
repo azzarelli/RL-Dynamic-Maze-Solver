@@ -351,17 +351,17 @@ class Network(nn.Module):
 
         # set common feature layer
         self.feature_layer = nn.Sequential(
-            nn.Linear(in_dim, 128),
+            nn.Linear(in_dim, 256),
             nn.ReLU(),
         )
 
         # set advantage layer
-        self.advantage_hidden_layer = NoisyLinear(128, 128)
-        self.advantage_layer = NoisyLinear(128, out_dim * atom_size)
+        self.advantage_hidden_layer = NoisyLinear(256, 256)
+        self.advantage_layer = NoisyLinear(256, out_dim * atom_size)
 
         # set value layer
-        self.value_hidden_layer = NoisyLinear(128, 128)
-        self.value_layer = NoisyLinear(128, atom_size)
+        self.value_hidden_layer = NoisyLinear(256, 256)
+        self.value_layer = NoisyLinear(256, atom_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward method implementation."""
