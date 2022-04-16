@@ -29,10 +29,11 @@ action_dir = {"0": {"id":'stay',
               }
 
 global rewards_dir
-rewards_dir = {"move": +1.,
+rewards_dir = {"towards": +1,
+               "away":+1,
               "visited":-1.,
               "wall":-1.,
-              "stay":-1.,
+              "stay":-1.
               }
 
 
@@ -135,9 +136,9 @@ class Environment:
         x_inc, y_inc = action_dir[act_key]['move'] # fetch movement from position (1,1)
 
         # If too much time elapsed you die in maze :( (terminate maze at this point)
-        if self.step_cntr > 800:
+        if self.step_cntr > len(self.actorpath)*2:
             print('I became an old man and dies in this maze...')
-            return self.observe_environment, -1., True, {} # terminate
+            return self.observe_environment, -10., True, {} # terminate
         # If we spent too long vising places we have already been
         # if self.visit_cntr > 50:
         #     print('Visisted Timeout')
@@ -161,10 +162,13 @@ class Environment:
         # Have we reached the end?
         if new_pos == (199, 199):
             return self.observation, 100., True, {}
-
-        # Have we visited this spot already?
+        #
+        # # Have we visited this spot already?
         if self.actor_pos in self.actorpath:
             return self.observe_environment, rewards_dir['visited'], False, {}
 
+        if x_inc > 0 or y_inc > 0:
+            return self.observe_environment, rewards_dir['towards'], False, {}
+
         # finally our only choice is to move away from goal
-        return self.observe_environment, rewards_dir['move'], False, {}
+        return self.observe_environment, rewards_dir['away']*(len(self.actorpath)/10), False, {}

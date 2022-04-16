@@ -31,11 +31,11 @@ action_dir = {"0": {"id":'stay',
 global rewards_dir
 rewards_dir = {"onwards": +1.,
               "backwards":+1.,
-              "visited":-2.,
-              "blockedin":+1.,
+              "visited":0.,
+              "blockedin":+0.,
               "fire":-800.,
-              "wall":-1.,
-              "stay":-1,
+              "wall":-0.,
+              "stay":-0,
               }
 
 
