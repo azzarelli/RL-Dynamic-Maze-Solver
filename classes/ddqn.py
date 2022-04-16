@@ -8,32 +8,32 @@ import torch.optim as optim
 test_list = []
 
 class DDQN(nn.Module):
-    def __init__(self, lr, n_actions, name, input_dims, save_dir):
+    def __init__(self, lr, n_actions, name, input_dim, save_dir):
         super(DDQN, self).__init__()
         self.save_dir = save_dir
         self.save_file = os.path.join(self.save_dir, name)
 
         self.features = nn.Sequential( # Convolutional layer
-            nn.Linear(*input_dims, 256),
+            nn.Linear(*input_dim, 1024),
             nn.ReLU()
-            )
+        )
 
         self.value_stream = nn.Sequential(
-            nn.Linear(256, 256),
+            nn.Linear(1024, 2048),
             nn.ReLU(),
-            nn.Linear(256, 1)
-            )
+            nn.Linear(2048, 1)
+        )
         self.advantage_stream = nn.Sequential(
-            nn.Linear(256, 256),
+            nn.Linear(1024, 2048),
             nn.ReLU(),
-            nn.Linear(256, n_actions)
-            )
+            nn.Linear(2048, n_actions)
+        )
 
         self.optimiser = optim.Adam(self.parameters(), lr=lr)
-        self.loss =  nn.MSELoss()
-        # self.loss = nn.HuberLoss()
-        # self.loss = nn.L1Loss()
+        self.loss = nn.MSELoss()
 
+        # self.loss = nn.HuberLoss()
+        #self.loss = nn.L1Loss()
 
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
         print(f'... {name} Network training on {self.device} ...')
@@ -43,7 +43,9 @@ class DDQN(nn.Module):
         features = self.features(state)
         V = self.value_stream(features)
         A = self.advantage_stream(features)
-        return V,A
+
+        Q = T.add(V, (A - A.mean()))
+        return Q
 
     def save_(self):
         print('Saving network ...')
