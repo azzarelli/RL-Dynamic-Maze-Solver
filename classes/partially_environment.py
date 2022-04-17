@@ -35,11 +35,11 @@ action_dir = {"0": {"id":'stay',
               }
 
 global rewards_dir
-rewards_dir = {"towards": +.004,
-               "away":+.004,
-              "visited":-.8,
-              "wall":-.9,
-              "stay":-.7
+rewards_dir = {"towards": -.04,
+               "away":-.08,
+              "visited":-2.,
+              "wall":-2.,
+              "stay":-2.
               }
 
 
@@ -55,10 +55,10 @@ class Environment:
         self.observation_map = [[-1 for i in range(200)] for j in range(200)]
         self.observation_size = 10
         self.not_observed = 0
-        self.observation = self.observe_environment  # set up empty state
-        self.observation_2 = self.observation.copy()
+        o = self.observe_environment  # set up empty state
+        self.observation = o[:int(len(o)/2)]
+        self.prior_observation = o[int(len(o)/2):-2]
         self.obs2D = []
-
 
 
     @property
@@ -75,16 +75,14 @@ class Environment:
 
         self.observation_map = [[-1 for i in range(200)] for j in range(200)]
         self.not_observed = 0
-        self.observation = self.observe_environment  # set up empty state
-        self.observation_2 = self.observation.copy()
-        return self.observation
+        o = self.observe_environment  # set up empty state
+        self.observation = o[:int(len(o)/2)-1]
+        self.prior_observation = o[int(len(o)/2)-1:-2]
 
-    transform = transforms.Compose([
-        transforms.PILToTensor()
-    ])
+        return o
 
-    def observation_2d(self, l1):
-        obsv = [[[0, 0, 0] for j in range(self.observation_size)] for i in range(self.observation_size)]
+    def observation_2dlarge(self, l1, name):
+        obsv = [[[0, 0, 0] for j in range(self.observation_size)] for i in range(self.observation_size*2)]
         for i, l in enumerate(l1):
             c, d = i % self.observation_size, int(i / self.observation_size)
             if l == 1:
@@ -101,7 +99,31 @@ class Environment:
         img = Image.fromarray(obsv_, 'RGB')
         img = ImageOps.grayscale(img)
         # Example of observation
-        # img.save('observation.png')
+        img.save('observation'+name+'.png')
+
+        #img = self.transform(img)
+
+        return obsv, img
+
+    def observation_2d(self, l1, name):
+        obsv = [[[0, 0, 0] for j in range(self.observation_size)] for i in range(self.observation_size*2)]
+        for i, l in enumerate(l1):
+            c, d = i % self.observation_size, int(i / self.observation_size)
+            if l == 1:
+                obsv[d][c] = [0, 255, 0]
+            elif l == 2:
+                obsv[d][c] = [255, 255, 255]
+
+            elif l == 0:
+                obsv[d][c] = [0, 0, 0]
+            else:
+                obsv[d][c] = [0, 140, 50]
+
+        obsv_ = np.array(obsv,  dtype=np.uint8)
+        img = Image.fromarray(obsv_, 'RGB')
+        img = ImageOps.grayscale(img)
+        # Example of observation
+        img.save('observation'+name+'.png')
 
         #img = self.transform(img)
 
@@ -117,16 +139,14 @@ class Environment:
 
         for a, b in pos: # update new info at new index
             i, j = a-x+1, b-y+1 # (0,0) (0,1)(0,2), (1,0) ... (2,2)
+            if loc[j][i][0] == 0:
+                self.observation_map[b][a] = 0
+            else:
+                self.observation_map[b][a] = 2
 
-            if self.observation_map[b][a] != 3 or self.observation_map[b][a] != 2:
-                if loc[j][i][0] == 0:
-                    self.observation_map[b][a] = 0
-                else:
-                    self.observation_map[b][a] = 2
-
-
-        # for a,b in self.actorpath:
-        #     self.observation_map[b][a] = 1
+        # Convert actor path to colour of global map
+        for a,b in self.actorpath:
+            self.observation_map[b][a] = 3
         self.observation_map[y][x] = 1
 
         if self.actor_pos not in self.actorpath:
@@ -166,23 +186,24 @@ class Environment:
         #             obsv[j][i] = [0, 255, 0]
 
         #   What the 20x20 observation sees
-        self.obs2D, img = self.observation_2d(l1)
+        _, img = self.observation_2d(l1, '1')
 
         # Show bitmap
         # from matplotlib import pyplot as plt
         # plt.imshow(obsv, interpolation='nearest')
         # plt.show()
         if self.not_observed != 0:
-            l2 = self.observation_2.copy()
-            self.not_observed +=1
+            l2 = self.observation.copy()
+            l = l1 + l2
+            self.obs2D, img2 = self.observation_2dlarge(l, '2')
 
-            self.observation_2 = self.observation.copy()
-            self.observation = l1  # + [self.actor_pos[0], self.actor_pos[1]] # , self.step_cntr ]# + [prior_pos[0], prior_pos[1]]
-        else:
             self.observation = l1
-            self.observation_2 = self.observation.copy()
-            l2 = self.observation_2
-        return l1 + l2
+            self.prior_observation = l2
+        else:
+            l2 = l1.copy()
+            self.not_observed += 1
+
+        return l1 + l2 + [self.actor_pos[0], self.actor_pos[1]]
 
     @property
     def get_actor_pos(self):
@@ -208,9 +229,9 @@ class Environment:
         x_inc, y_inc = action_dir[act_key]['move'] # fetch movement from position (1,1)
 
         # If too much time elapsed you die in maze :( (terminate maze at this point)
-        if self.step_cntr > 600: # len(self.actorpath)*2:
+        if self.step_cntr > len(self.actorpath)*4:
             print('I became an old man and dies in this maze...')
-            return self.observe_environment, -10., True, {} # terminate
+            return self.observe_environment, -0., True, {} # terminate
         # If we spent too long vising places we have already been
         # if self.visit_cntr > 50:
         #     print('Visisted Timeout')

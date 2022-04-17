@@ -42,8 +42,9 @@ class Plotter:
 
         print('Plotting ...')
         plt.figure()
-        plt.plot(self.scores, color='blue', label='Raw')
+        plt.plot(self.scores, color='yellow', label='Raw')
         plt.plot(self.scores_avg, color='orange', label='Average')
+        plt.plot(self.path_cntrs, color='blue', label='Path Length')
         plt.xlabel('Epochs')
         plt.legend()
         plt.ylabel('Avg Score')
