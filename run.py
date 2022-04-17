@@ -25,7 +25,7 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
     # Default (Fixed) Parameters
     epsilon_min = epsilon_min
     epsilon_dec = ep_dec
-    input_dims = [200]
+    input_dims = [202]
     output_dims = 5
 
     replace_testnet = 3
