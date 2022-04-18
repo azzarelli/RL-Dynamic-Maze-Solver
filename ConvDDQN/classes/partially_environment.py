@@ -36,11 +36,11 @@ action_dir = {"0": {"id":'stay',
               }
 
 global rewards_dir
-rewards_dir = {"towards": -.04,
-               "away":-.08,
-              "visited":-2.,
-              "wall":-2.,
-              "stay":-2.
+rewards_dir = {"towards": +1.,
+               "away":+.8,
+              "visited":-.05,
+              "wall":-.1,
+              "stay":-0.01
               }
 
 
@@ -92,10 +92,10 @@ class Environment:
                 self.observation_map[b][a] = [255, 255, 255]
 
         # Convert actor path to colour of global map
-        # for a,b in self.actorpath:
-        #     self.observation_map[b][a] = [200, 200, 200]
-        self.observation_map[y][x] = [140, 140, 140]
-
+        for a,b in self.actorpath:
+            self.observation_map[b][a] = [0, 100, 50]
+        self.observation_map[y][x] = [255, 0, 0]
+        self.observation_map[198][198] = [0, 0, 255]
         if self.actor_pos not in self.actorpath:
             self.visit_cntr = 0
             self.actorpath.append(self.actor_pos)
@@ -104,10 +104,13 @@ class Environment:
 
         obsv_ = np.array(self.observation_map, dtype=np.uint8)
         img = Image.fromarray(obsv_, 'RGB')
+
         # img = ImageOps.grayscale(img)
-        img = tv.Grayscale()(img)
+        # img = tv.Grayscale()(img)
+        # img = img.resize((400,400))
         img.save('observationmap.png')
         img = self.transform(img)
+        img = tv.Pad(padding=10)(img)
         # imgnpy = img.numpy()
         # img = T.from_numpy(imgnpy[0])
         # print(img)
@@ -143,7 +146,7 @@ class Environment:
         x_inc, y_inc = action_dir[act_key]['move'] # fetch movement from position (1,1)
 
         # If too much time elapsed you die in maze :( (terminate maze at this point)
-        if self.step_cntr > len(self.actorpath)*4:
+        if self.step_cntr > len(self.actorpath)*2 or self.step_cntr > 4000:
             print('I became an old man and dies in this maze...')
             return self.observe_environment, -0., True, {} # terminate
         # If we spent too long vising places we have already been

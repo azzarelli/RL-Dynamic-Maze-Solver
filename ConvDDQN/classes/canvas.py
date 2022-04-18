@@ -95,7 +95,8 @@ class Canvas:
                         + cellBorder + lw / 2,
                         celldimX, celldimY, col=BLUE)
 
-    def step(self, visible, idx, path, acts, action, score, reward, tep_cntr, ep, wall, visit, obs):
+    def step(self, visible, idx, path, acts, action, score, reward,
+             tep_cntr, ep, wall, visit, obs, epsilon, lr):
         """Run the pygame environment for displaying the maze structure and visible (local) environment of actor
         """
         self.get_event()
@@ -105,7 +106,8 @@ class Canvas:
         self.drawSquareGrid(origin, mazeWH)
 
         self.placeCells()
-        self.draw_visible(acts, action,  score, reward, tep_cntr, ep, wall, visit, obs)
+        self.draw_visible(acts, action,  score, reward, tep_cntr, ep,
+                          wall, visit, obs, epsilon, lr)
         pygame.display.update()
         self.step_cntr += 1
 
@@ -114,7 +116,8 @@ class Canvas:
         self.actor = idx
         self.path = path
 
-    def draw_visible(self, acts, action, score, reward, step_cntr, ep, wall, visit, obs):
+    def draw_visible(self, acts, action, score, reward, step_cntr, ep, wall,
+                     visit, obs, epsilon, lr):
         """Draw the visible environment around the actor
 
         Notes
@@ -147,6 +150,10 @@ class Canvas:
         self.surface.blit(self.font.render('Revisited: ' + str(visit), True,(200, 200, 200)),
             (1100, 250))
 
+        self.surface.blit(self.font.render('Epsilon: ' + str(float('%.2f' % epsilon)), True, (200, 200, 200)),
+                          (1100, 280))
+        self.surface.blit(self.font.render('Learn Rate: ' + str(float('%.2f' % lr)), True, (200, 200, 200)),
+                          (1100, 310))
         if acts != []:
             # acts = acts.data.cpu().numpy()[0]
             if action == 0:action_str = 'Stay'

@@ -25,10 +25,10 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
     # Default (Fixed) Parameters
     epsilon_min = epsilon_min
     epsilon_dec = ep_dec
-    input_dims = [1, 200, 200]
+    input_dims = [3, 100, 100]
     output_dims = 5
 
-    replace_testnet = 3
+    replace_testnet = 1
     memsize = 100000 # https://arxiv.org/abs/1712.01275
     batch_size = batch_size
 
@@ -74,7 +74,8 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
 
                 if canv_chck:
                     canv.step(env.obs2D.copy(), env.actor_pos, env.actorpath, acts.data.cpu().numpy(), action,
-                              score, reward, env.step_cntr, i, env.wall_cntr, env.visit_cntr, env.obs2D)
+                              score, reward, env.step_cntr, i, env.wall_cntr, env.visit_cntr, env.obs2D,
+                              agent.epsilon, agent.lr)
 
             agent.step_params(beta_inc)
 
@@ -86,7 +87,7 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
             print(f'Ep {i}, {loss} score {score}, epsilon {agent.epsilon}, beta {agent.beta}')
             print(f'    Path Len {path} : Stayed {env.stay_cntr} : Walls {env.wall_cntr}')
             # Save NN every 10 its
-            if i > 20 and i % 20 == 0:
+            if i > 10 and i % 10 == 0:
                 agent.save_models()
                 plt.live_plot()
 

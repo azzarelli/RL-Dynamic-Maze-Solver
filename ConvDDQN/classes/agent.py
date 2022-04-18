@@ -120,7 +120,7 @@ class Agent():
         #w = T.unsqueeze(weights, 1).to(self.q_eval.device)
         # loss = (loss * w).mean()
 
-        td_errors = T.pow(q_pred - q_target, 2) * weights
+        td_errors = self.q_eval.loss(q_target, q_pred).to(self.q_eval.device) * weights
 
 
         return td_errors, batch_idxs
@@ -141,6 +141,9 @@ class Agent():
 
         self.q_eval.optimiser.step()
         self.learn_step_counter += 1
+        # self.dec_epsilon()
+        # self.inc_beta(0.01)
+
 
         # update priorities
         for idx, td_error in zip(idxs, loss.cpu().detach().numpy()):

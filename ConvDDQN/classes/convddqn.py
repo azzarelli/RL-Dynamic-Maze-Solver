@@ -20,21 +20,21 @@ class ConvDDQN(nn.Module):
             nn.ReLU(),
             nn.Conv2d(32, 64, kernel_size=4, stride=2),
             nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=1, stride=1),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1),
             nn.ReLU()
         )
         self.fc_input_dim = self.feature_size()
 
         self.value_stream = nn.Sequential(
-            nn.Linear(33856, 128),
+            nn.Linear(36864, 256),
             nn.ReLU(),
-            nn.Linear(128, 1)
+            nn.Linear(256, 1)
         )
 
         self.advantage_stream = nn.Sequential(
-            nn.Linear(33856, 128),
+            nn.Linear(36864, 256),
             nn.ReLU(),
-            nn.Linear(128, n_actions)
+            nn.Linear(256, n_actions)
         )
 
         self.optimiser = optim.Adam(self.parameters(), lr=lr)
