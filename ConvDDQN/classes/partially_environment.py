@@ -45,11 +45,12 @@ rewards_dir = {"towards": +1.,
 
 
 class Environment:
-    def __init__(self):
+    def __init__(self, img_size:int=10):
         self.step_cntr = 0
         self.wall_cntr = 0
         self.stay_cntr = 0
         self.visit_cntr = 0
+        self.window_size = img_size
 
         self.actor_pos = (1, 1)
         self.actorpath = [self.actor_pos]
@@ -94,6 +95,7 @@ class Environment:
         # Convert actor path to colour of global map
         for a,b in self.actorpath:
             self.observation_map[b][a] = [0, 100, 50]
+
         self.observation_map[y][x] = [255, 0, 0]
         self.observation_map[198][198] = [0, 0, 255]
         if self.actor_pos not in self.actorpath:
@@ -102,15 +104,31 @@ class Environment:
         else:
             self.visit_cntr += 1
 
-        obsv_ = np.array(self.observation_map, dtype=np.uint8)
-        img = Image.fromarray(obsv_, 'RGB')
+        diff = int((self.window_size-1)/2)
+        x_lb, x_ub = x-diff, x+diff
+        y_lb, y_ub = y-diff, y+diff
 
-        # img = ImageOps.grayscale(img)
+        obs = [[[50, 50, 50] for i in range(self.window_size)] for j in range(self.window_size)]
+
+        for j, y_i in enumerate(range(y_lb, y_ub+1)):
+            for i, x_i in enumerate(range(x_lb, x_ub+1)):
+                if y_i < 0 or x_i < 0:
+                    pass
+                else:
+                    obs[j][i] = self.observation_map[y_i][x_i]
+
+        obsv_ = np.array(obs, dtype=np.uint8)
+        img = Image.fromarray(obsv_, 'RGB')
+        self.obs2D = np.array(img)
+        img = ImageOps.grayscale(img)
+
         # img = tv.Grayscale()(img)
         # img = img.resize((400,400))
-        img.save('observationmap.png')
+
+        T.save(img, 'observationmap.png')
+
         img = self.transform(img)
-        img = tv.Pad(padding=10)(img)
+        # img = tv.Pad(padding=50)(img)
         # imgnpy = img.numpy()
         # img = T.from_numpy(imgnpy[0])
         # print(img)

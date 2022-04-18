@@ -3,7 +3,7 @@ import torch as T
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-
+import numpy as np
 
 test_list = []
 
@@ -23,16 +23,15 @@ class ConvDDQN(nn.Module):
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
             nn.ReLU()
         )
-        self.fc_input_dim = self.feature_size()
-
+        self.fc_input_dim = self._get_conv_out(input_dim)
         self.value_stream = nn.Sequential(
-            nn.Linear(36864, 256),
+            nn.Linear(1024, 256),
             nn.ReLU(),
             nn.Linear(256, 1)
         )
 
         self.advantage_stream = nn.Sequential(
-            nn.Linear(36864, 256),
+            nn.Linear(1024, 256),
             nn.ReLU(),
             nn.Linear(256, n_actions)
         )
@@ -46,6 +45,11 @@ class ConvDDQN(nn.Module):
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
         print(f'... {name} Network training on {self.device} ...')
         self.to(self.device)
+
+    def _get_conv_out(self, shape):
+        o = self.conv(T.zeros(1, *shape))
+        return int(np.prod(o.size()))
+
 
     def forward(self, state):
         features = self.conv(state)

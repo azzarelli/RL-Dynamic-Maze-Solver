@@ -131,13 +131,14 @@ class Agent():
             return
 
         #time.sleep(5) # delay for time animation
+
+        self.q_eval.optimiser.zero_grad()
         loss, idxs = self.compute_loss()
         lossmean = loss.mean()
 
-        self.q_eval.optimiser.zero_grad()
         lossmean.backward()
 
-        T.nn.utils.clip_grad_norm_(self.q_eval.parameters(), max_norm=0.5)
+        # T.nn.utils.clip_grad_norm_(self.q_eval.parameters(), max_norm=0.5)
 
         self.q_eval.optimiser.step()
         self.learn_step_counter += 1

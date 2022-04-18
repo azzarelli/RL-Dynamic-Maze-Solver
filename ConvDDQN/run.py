@@ -21,18 +21,20 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
         gamma=0.9, episodes=100, netname='default.pt', epsilon_min=0.01, ep_dec = 1e-4, batch_size=128, beta_inc=0.1):
 
     name = 'probe'
+    img_size = 65
+    channels = 1
 
     # Default (Fixed) Parameters
     epsilon_min = epsilon_min
     epsilon_dec = ep_dec
-    input_dims = [3, 100, 100]
+    input_dims = [channels, img_size, img_size]
     output_dims = 5
 
     replace_testnet = 1
     memsize = 100000 # https://arxiv.org/abs/1712.01275
     batch_size = batch_size
 
-    env = Environment()
+    env = Environment(img_size=img_size)
     agent = Agent(gamma=gamma, epsilon=epsilon, lr=lr,
                   input_dims=input_dims, n_actions=output_dims, mem_size=memsize, eps_min=epsilon_min,
                   batch_size=batch_size, eps_dec=epsilon_dec, replace=replace_testnet, name=netname)

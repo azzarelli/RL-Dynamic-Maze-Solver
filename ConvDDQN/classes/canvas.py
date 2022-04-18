@@ -179,7 +179,7 @@ class Canvas:
             origin[1] + (celldimY * self.actor[1]) + lw / 2,
             celldimX, celldimY, col=GREEN)
 
-        cell_size = 12
+        cell_size = 4
 
         for row, obs_row in enumerate(obs):
             for col, obs_i in enumerate(obs_row):
