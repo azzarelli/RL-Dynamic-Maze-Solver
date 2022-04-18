@@ -35,11 +35,11 @@ action_dir = {"0": {"id":'stay',
               }
 
 global rewards_dir
-rewards_dir = {"towards": -.04,
-               "away":-.08,
-              "visited":-2.,
-              "wall":-2.,
-              "stay":-2.
+rewards_dir = {"towards": +1.,
+               "away":+.8,
+              "visited":-.05,
+              "wall":-.1,
+              "stay":-0.01
               }
 
 
@@ -55,9 +55,9 @@ class Environment:
         self.observation_map = [[-1 for i in range(200)] for j in range(200)]
         self.observation_size = 10
         self.not_observed = 0
-        o = self.observe_environment  # set up empty state
-        self.observation = o[:int(len(o)/2)]
-        self.prior_observation = o[int(len(o)/2):-2]
+        self.observation = self.observe_environment
+        o = self.observation[:-3]  # set up empty state
+        self.observations = [o[(i) * int(len(o) / 5):(i + 1) * int(len(o) / 5)] for i in range(5)]
         self.obs2D = []
 
 
@@ -75,14 +75,14 @@ class Environment:
 
         self.observation_map = [[-1 for i in range(200)] for j in range(200)]
         self.not_observed = 0
-        o = self.observe_environment  # set up empty state
-        self.observation = o[:int(len(o)/2)-1]
-        self.prior_observation = o[int(len(o)/2)-1:-2]
+        self.observation = self.observe_environment
+        o = self.observation[:-3]  # set up empty state
+        self.observations = [o[(i) * int(len(o) / 5):(i+1) * int(len(o) / 5)] for i in range(5)]
 
-        return o
+        return self.observation
 
     def observation_2dlarge(self, l1, name):
-        obsv = [[[0, 0, 0] for j in range(self.observation_size)] for i in range(self.observation_size*2)]
+        obsv = [[[0, 0, 0] for j in range(self.observation_size)] for i in range(self.observation_size*5)]
         for i, l in enumerate(l1):
             c, d = i % self.observation_size, int(i / self.observation_size)
             if l == 1:
@@ -106,7 +106,7 @@ class Environment:
         return obsv, img
 
     def observation_2d(self, l1, name):
-        obsv = [[[0, 0, 0] for j in range(self.observation_size)] for i in range(self.observation_size*2)]
+        obsv = [[[0, 0, 0] for j in range(self.observation_size)] for i in range(self.observation_size)]
         for i, l in enumerate(l1):
             c, d = i % self.observation_size, int(i / self.observation_size)
             if l == 1:
@@ -116,8 +116,10 @@ class Environment:
 
             elif l == 0:
                 obsv[d][c] = [0, 0, 0]
-            else:
+            elif l == -1:
                 obsv[d][c] = [0, 140, 50]
+            else:
+                obsv[d][c] = [0, 50, 50]
 
         obsv_ = np.array(obsv,  dtype=np.uint8)
         img = Image.fromarray(obsv_, 'RGB')
@@ -145,8 +147,8 @@ class Environment:
                 self.observation_map[b][a] = 2
 
         # Convert actor path to colour of global map
-        for a,b in self.actorpath:
-            self.observation_map[b][a] = 3
+        # for a,b in self.actorpath:
+        #     self.observation_map[b][a] = 3
         self.observation_map[y][x] = 1
 
         if self.actor_pos not in self.actorpath:
@@ -164,8 +166,9 @@ class Environment:
         l1 = []
         for j in range(b_1, b_2):
             for i in range(a_1, a_2):
+
                 if j < 0 or i < 0:
-                    l1.append(-1)
+                    l1.append(-2)
                 else:
                     l1.append(self.observation_map[j][i])
 
@@ -193,17 +196,34 @@ class Environment:
         # plt.imshow(obsv, interpolation='nearest')
         # plt.show()
         if self.not_observed != 0:
-            l2 = self.observation.copy()
-            l = l1 + l2
+            l2 = self.observations[0].copy()
+
+            self.observations[0] = l1
+
+            # only change prior observation when a change has occured
+            if l2 != l1:
+
+                self.observations.append(l2)
+                self.observations.pop(1)
+                # self.prior_observation = l2
+
+
+            l = self.observations[0] + self.observations[4] +self.observations[3] +self.observations[2]+\
+                self.observations[1]
+
             self.obs2D, img2 = self.observation_2dlarge(l, '2')
 
-            self.observation = l1
-            self.prior_observation = l2
+            self.observation = l + [self.actor_pos[0], self.actor_pos[1], len(self.actorpath)]
+            return self.observation
+
         else:
             l2 = l1.copy()
             self.not_observed += 1
+            l = l1 + l2 + l2 + l2 + l2
+            self.obs2D, img2 = self.observation_2dlarge(l, '2')
 
-        return l1 + l2 + [self.actor_pos[0], self.actor_pos[1]]
+            o = l + [self.actor_pos[0], self.actor_pos[1], len(self.actorpath)]
+            return o
 
     @property
     def get_actor_pos(self):
@@ -229,7 +249,7 @@ class Environment:
         x_inc, y_inc = action_dir[act_key]['move'] # fetch movement from position (1,1)
 
         # If too much time elapsed you die in maze :( (terminate maze at this point)
-        if self.step_cntr > len(self.actorpath)*4:
+        if self.step_cntr > len(self.actorpath)*4 or self.step_cntr > 4000:
             print('I became an old man and dies in this maze...')
             return self.observe_environment, -0., True, {} # terminate
         # If we spent too long vising places we have already been

@@ -25,7 +25,7 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
     # Default (Fixed) Parameters
     epsilon_min = epsilon_min
     epsilon_dec = ep_dec
-    input_dims = [202]
+    input_dims = [503]
     output_dims = 5
 
     replace_testnet = 3
@@ -46,7 +46,6 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
         agent.load_models()
 
 
-
     if train_chck:
 
         plt = Plotter(name)
@@ -55,7 +54,6 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
         for i in range(episodes):
             done = False
             observation = env.reset
-
             if canv_chck:
                 canv.set_visible(env.loc.copy(), env.actor_pos, [])
 
@@ -63,7 +61,6 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
             while not done:
                 action, acts = agent.greedy_epsilon(observation)
                 observation_, reward, done, info = env.step(action, score)
-
                 path = len(env.actorpath)
 
                 score += reward
@@ -71,7 +68,6 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
 
                 loss = agent.learn()
                 observation = observation_
-
                 if canv_chck:
                     canv.step(env.obs2D.copy(), env.actor_pos, env.actorpath, acts.data.cpu().numpy(), action,
                               score, reward, env.step_cntr, i, env.wall_cntr, env.visit_cntr, env.obs2D)
