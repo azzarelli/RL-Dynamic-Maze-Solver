@@ -18,11 +18,11 @@ import torchvision
 import torchvision.transforms as transforms
 
 def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
-        gamma=0.9, episodes=100, netname='default.pt', epsilon_min=0.01, ep_dec = 1e-4, batch_size=128, beta_inc=0.1):
+        gamma=0.9, episodes=100, netname='default.pt', epsilon_min=0.01, ep_dec = 1e-4, batch_size=128, beta_inc=0.01):
 
     name = 'probe'
-    img_size = 65
-    channels = 1
+    img_size = 37
+    channels = 2
 
     # Default (Fixed) Parameters
     epsilon_min = epsilon_min
@@ -61,9 +61,10 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
             if canv_chck:
                 canv.set_visible(env.loc.copy(), env.actor_pos, [])
 
+            hs = None
             score = 0
             while not done:
-                action, acts = agent.greedy_epsilon(observation)
+                action, acts, hs = agent.greedy_epsilon(observation, hs)
                 observation_, reward, done, info = env.step(action, score)
 
                 path = len(env.actorpath)
@@ -86,7 +87,7 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
             plt.data_in(score, wall_cntr=env.wall_cntr, stay_cntr=env.stay_cntr,
                         visit_cntr=env.visit_cntr, path_cntr=path)
 
-            print(f'Ep {i}, {loss} score {score}, epsilon {agent.epsilon}, beta {agent.beta}')
+            print(f'Ep {i}, {loss} score {score}, epsilon {agent.epsilon}, beta {agent.memory.beta}')
             print(f'    Path Len {path} : Stayed {env.stay_cntr} : Walls {env.wall_cntr}')
             # Save NN every 10 its
             if i > 10 and i % 10 == 0:

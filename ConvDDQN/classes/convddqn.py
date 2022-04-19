@@ -14,6 +14,9 @@ class ConvDDQN(nn.Module):
         self.save_file = os.path.join(self.save_dir, name)
 
         self.input_dim = input_dim
+        self.num_actions = n_actions
+
+        self.n_hidden = 256
 
         self.conv = nn.Sequential(
             nn.Conv2d(input_dim[0], 32, kernel_size=8, stride=4),
@@ -23,17 +26,20 @@ class ConvDDQN(nn.Module):
             nn.Conv2d(64, 64, kernel_size=3, stride=1),
             nn.ReLU()
         )
+
+        self.lstm_layer = nn.LSTM(input_size=64, hidden_size=self.n_hidden, num_layers=1, batch_first=True)
         self.fc_input_dim = self._get_conv_out(input_dim)
         self.value_stream = nn.Sequential(
-            nn.Linear(1024, 256),
-            nn.ReLU(),
-            nn.Linear(256, 1)
+            # nn.Linear(64, 256),
+            # nn.ReLU(),
+            nn.Linear(self.n_hidden, 1)
         )
 
         self.advantage_stream = nn.Sequential(
-            nn.Linear(1024, 256),
-            nn.ReLU(),
-            nn.Linear(256, n_actions)
+            # nn.Linear(64, 256),
+            # # nn.LSTM(64, 256, 256),
+            # nn.ReLU(),
+            nn.Linear(self.n_hidden, n_actions)
         )
 
         self.optimiser = optim.Adam(self.parameters(), lr=lr)
@@ -51,13 +57,17 @@ class ConvDDQN(nn.Module):
         return int(np.prod(o.size()))
 
 
-    def forward(self, state):
+    def forward(self, state, hs=None):
         features = self.conv(state)
         features = features.view(features.size(0), -1)
+
+        features, hs_ = self.lstm_layer(features, hs)
+        features = features.reshape(-1, self.n_hidden)
+
         V = self.value_stream(features)
         A = self.advantage_stream(features)
-        Q = V + (A - A.mean())
-        return Q
+        Q = V + (A - A.mean(1).unsqueeze(1).expand(state.size(0), self.num_actions))
+        return Q, hs_
 
     def feature_size(self):
         return self.conv(T.autograd.Variable(T.zeros(1, *self.input_dim))).view(1, -1).size(1)

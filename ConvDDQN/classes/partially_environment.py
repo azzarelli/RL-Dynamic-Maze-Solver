@@ -37,10 +37,10 @@ action_dir = {"0": {"id":'stay',
 
 global rewards_dir
 rewards_dir = {"towards": +1.,
-               "away":+.8,
-              "visited":-.05,
-              "wall":-.1,
-              "stay":-0.01
+               "away":+1.,
+              "visited":-1.,
+              "wall":-1.,
+              "stay":-1.
               }
 
 
@@ -50,6 +50,9 @@ class Environment:
         self.wall_cntr = 0
         self.stay_cntr = 0
         self.visit_cntr = 0
+
+        self.init = 0
+
         self.window_size = img_size
 
         self.actor_pos = (1, 1)
@@ -60,6 +63,7 @@ class Environment:
         self.loc = []
         self.observation = self.observe_environment
 
+
     @property
     def reset(self):
         self.step_cntr = 0
@@ -67,10 +71,13 @@ class Environment:
         self.stay_cntr = 0
         self.visit_cntr = 0
 
+        self.init = 0
+
         self.actor_pos = (1, 1)
         self.actorpath = [self.actor_pos]
         self.loc = []
         self.observation_map = [[[50,50,50] for i in range(200)] for j in range(200)]
+
         self.observation = self.observe_environment
         self.obs2D = []
 
@@ -94,7 +101,7 @@ class Environment:
 
         # Convert actor path to colour of global map
         for a,b in self.actorpath:
-            self.observation_map[b][a] = [0, 100, 50]
+            self.observation_map[b][a] = [100, 100, 100]
 
         self.observation_map[y][x] = [255, 0, 0]
         self.observation_map[198][198] = [0, 0, 255]
@@ -118,27 +125,35 @@ class Environment:
                     obs[j][i] = self.observation_map[y_i][x_i]
 
         obsv_ = np.array(obs, dtype=np.uint8)
+
         img = Image.fromarray(obsv_, 'RGB')
+        img.save('observationmap.png')
+
         self.obs2D = np.array(img)
         img = ImageOps.grayscale(img)
+
+        # reset environment so reload last 5 observations:
+        if self.init == 0:
+            self.obs = [img for i in range(2)]
+            imgs = T.stack([self.transform(o) for o in self.obs], dim=1)[0]
+            self.init += 1
+        else:
+            self.obs.insert(0, img)
+            self.obs.pop(-1)
+            imgs = T.stack([self.transform(o) for o in self.obs], dim=1)[0]
+
 
         # img = tv.Grayscale()(img)
         # img = img.resize((400,400))
 
-        T.save(img, 'observationmap.png')
-
-        img = self.transform(img)
+        # img = self.transform(img)
         # img = tv.Pad(padding=50)(img)
         # imgnpy = img.numpy()
         # img = T.from_numpy(imgnpy[0])
         # print(img)
 
-        # Example of observation
-
-        self.observation = img
-
         # img = self.transform(img)
-        return img
+        return imgs
 
     @property
     def get_actor_pos(self):
@@ -164,7 +179,7 @@ class Environment:
         x_inc, y_inc = action_dir[act_key]['move'] # fetch movement from position (1,1)
 
         # If too much time elapsed you die in maze :( (terminate maze at this point)
-        if self.step_cntr > len(self.actorpath)*2 or self.step_cntr > 4000:
+        if self.step_cntr > 4000 or self.step_cntr > len(self.actorpath)*3: #or
             print('I became an old man and dies in this maze...')
             return self.observe_environment, -0., True, {} # terminate
         # If we spent too long vising places we have already been

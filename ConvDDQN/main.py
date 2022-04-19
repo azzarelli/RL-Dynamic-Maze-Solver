@@ -7,4 +7,4 @@ if __name__ == '__main__':
         run(canv_chck=True, chckpt=False, episodes=10000,
             lr=0.01, epsilon=0.9, gamma=0.999,
            netname='variations', batch_size=64, epsilon_min=0.05,
-            beta_inc=0.01, ep_dec=0.01)
+            beta_inc=0.01, ep_dec=0.001)

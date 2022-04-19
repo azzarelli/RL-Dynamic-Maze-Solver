@@ -4,7 +4,6 @@ import time
 from ConvDDQN.classes.replaybuffer import PrioritizedBuffer # Simple Replay Buffer
 #from classes.replaybuffer_ import ReplayBuffer
 
-from ConvDDQN.classes.ddqn import DDQN
 from ConvDDQN.classes.convddqn import ConvDDQN
 from torchvision.transforms import  transforms
 
@@ -41,10 +40,10 @@ class Agent():
                            name=name, save_dir=self.save_dir)
         self.q_next = ConvDDQN(self.lr, self.n_actions, input_dim=input_dims,
                            name=name+'.next', save_dir=self.save_dir)
-        self.q_next.eval()
+        # self.q_next.eval()
 
 
-    def greedy_epsilon(self, observation):
+    def greedy_epsilon(self, observation, hs):
         with T.no_grad():
             actions = T.Tensor([])
             # if we randomly choose max expected reward action
@@ -52,13 +51,13 @@ class Agent():
                 #state = (observation).to(self.q_eval.device)
                 state = T.FloatTensor(observation).float().unsqueeze(0).to(self.q_eval.device)
                 # state = T.tensor([observation], dtype=T.float).to(self.q_eval.device)
-                Q = self.q_eval.forward(state)
+                Q, hs = self.q_eval.forward(state, hs)
                 action = np.argmax(Q.cpu().detach().numpy())
                 actions = Q
             # otherwise random action
             else:
                 action = np.random.choice(self.action_space)
-            return action, actions
+            return action, actions, hs
 
     def store_transition(self, state, state_, reward, action, done):
         self.memory.add(state, state_, reward, action, done)
@@ -77,7 +76,7 @@ class Agent():
             if self.epsilon > self.eps_min else self.eps_min
 
     def inc_beta(self, b):
-        self.beta = self.beta + b if self.beta < 1 else 1
+        self.memory.beta = self.memory.beta + b if self.memory.beta < 1 else 1
 
     def save_models(self):
         self.q_eval.save_()
@@ -105,8 +104,9 @@ class Agent():
 
         weights = T.FloatTensor(weights).to(self.q_eval.device)
 
-        Q_pred = self.q_eval.forward(states).gather(1, actions.unsqueeze(1)).squeeze(1)
-        Q_next = self.q_next.forward(states_)
+        q_pred, hs = self.q_eval.forward(states)
+        Q_pred = q_pred.gather(1, actions.unsqueeze(1)).squeeze(1)
+        Q_next, hs = self.q_next.forward(states_)
 
         q_pred = Q_pred
         q_next = Q_next
@@ -131,7 +131,7 @@ class Agent():
             return
 
         #time.sleep(5) # delay for time animation
-
+        self.q_eval.train()
         self.q_eval.optimiser.zero_grad()
         loss, idxs = self.compute_loss()
         lossmean = loss.mean()
