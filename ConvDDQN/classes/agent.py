@@ -11,7 +11,7 @@ from torchvision.transforms import  transforms
 class Agent():
     def __init__(self, gamma, epsilon, lr, n_actions, input_dims,
                  mem_size, batch_size, eps_min=0.01, eps_dec=5e-7,
-                 replace=1000, save_dir='networkdata/', name='maze-test-1.pt', multi_frame:bool=True,
+                 replace=1000, save_dir='networkdata/', name='maze-test-1.pt', multi_frame:bool=True, memtype:str='Random',
                  alpha=0.7, beta=0.4):
         # Network parameters
         self.learn_step_counter = 0
@@ -32,7 +32,7 @@ class Agent():
         self.replace_target_thresh = replace
         self.save_dir = save_dir
 
-        self.replay_experience = 'Random'
+        self.replay_experience = memtype
 
         self.action_space = [i for i in range(self.n_actions)]
 
