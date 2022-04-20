@@ -1,7 +1,7 @@
 import numpy as np
 import torch as T
 import time
-from ConvDDQN.classes.replaybuffer import PrioritizedBuffer # Simple Replay Buffer
+from ConvDDQN.classes.replaybuffer import PrioritizedBuffer, RandomBuffer # Simple Replay Buffer
 #from classes.replaybuffer_ import ReplayBuffer
 
 from ConvDDQN.classes.convddqn import ConvDDQN
@@ -11,7 +11,7 @@ from torchvision.transforms import  transforms
 class Agent():
     def __init__(self, gamma, epsilon, lr, n_actions, input_dims,
                  mem_size, batch_size, eps_min=0.01, eps_dec=5e-7,
-                 replace=1000, save_dir='networkdata/', name='maze-test-1.pt',
+                 replace=1000, save_dir='networkdata/', name='maze-test-1.pt', multi_frame:bool=True,
                  alpha=0.7, beta=0.4):
         # Network parameters
         self.learn_step_counter = 0
@@ -32,9 +32,16 @@ class Agent():
         self.replace_target_thresh = replace
         self.save_dir = save_dir
 
+        self.replay_experience = 'Random'
+
         self.action_space = [i for i in range(self.n_actions)]
 
-        self.memory = PrioritizedBuffer(mem_size, self.batch_size, self.alpha, self.beta)
+        self.multi_frame = multi_frame
+        if self.replay_experience == 'Priority':
+            self.memory = PrioritizedBuffer(mem_size, self.batch_size, self.alpha, self.beta)
+        elif self.replay_experience == 'Random':
+            # input_shape, max_size, batch_size, beta):
+            self.memory = RandomBuffer(self.input_dims, mem_size, self.batch_size, self.beta, multi_frame=self.multi_frame)
 
         self.q_eval = ConvDDQN(self.lr, self.n_actions, input_dim=input_dims,
                            name=name, save_dir=self.save_dir)
@@ -87,31 +94,31 @@ class Agent():
         self.q_next.load_save()
 
     def compute_loss(self):
-        # sample memory (state_batch, action_batch, reward_batch, next_state_batch, done_batch), batch_idx, IS_weights
-        state, actions, reward, state_, term, weights, batch_idxs = self.memory.sample()
+        if self.replay_experience == 'Priority':
+            state, actions, reward, state_, term, weights, batch_idxs = self.memory.sample()
+        elif self.replay_experience == 'Random':
+            state, actions, reward, state_, term = self.memory.sample()
 
-        #sample = self.memory.sample()
-        # state = sample['state']
-        # state_ = sample['state_']
-        # actions = sample['action']
-        # reward = sample['reward']
-        # term = sample['done']
         states = T.FloatTensor(state).to(self.q_eval.device)
         actions = T.LongTensor(actions).type(T.int64) .to(self.q_eval.device)
         term = T.BoolTensor(term).to(self.q_eval.device)
         rewards = T.FloatTensor(reward).to(self.q_eval.device)
         states_ = T.FloatTensor(state_).to(self.q_eval.device)
 
-        weights = T.FloatTensor(weights).to(self.q_eval.device)
+        if self.replay_experience == 'Priority':
+            weights = T.FloatTensor(weights).to(self.q_eval.device)
 
-        q_pred, hs = self.q_eval.forward(states)
+        hs = (T.autograd.Variable(T.zeros(1, 512).float()).to(self.q_eval.device), T.autograd.Variable(T.zeros(1, 512).float()).to(self.q_eval.device))
+        q_pred, hs = self.q_eval.forward(states, hs)
         Q_pred = q_pred.gather(1, actions.unsqueeze(1)).squeeze(1)
-        Q_next, hs = self.q_next.forward(states_)
+        Q_next, hs = self.q_next.forward(states_, hs)
 
         q_pred = Q_pred
         q_next = Q_next
-
-        q_target = rewards.squeeze(1) + self.gamma * T.max(q_next, dim=1)[0] #.detach() #q_next[idxs, max_actions]
+        if self.replay_experience == 'Priority':
+            q_target = rewards.squeeze(1) + self.gamma * T.max(q_next, dim=1)[0] #.detach() #q_next[idxs, max_actions]
+        elif self.replay_experience == 'Random':
+            q_target = rewards.squeeze(0) + self.gamma * T.max(q_next, dim=1)[0] #.detach() #q_next[idxs, max_actions]
 
         q_target[term] = 0.0
 
@@ -120,9 +127,11 @@ class Agent():
         #w = T.unsqueeze(weights, 1).to(self.q_eval.device)
         # loss = (loss * w).mean()
 
-        td_errors = self.q_eval.loss(q_target, q_pred).to(self.q_eval.device) * weights
-
-
+        if self.replay_experience == 'Priority':
+            td_errors = self.q_eval.loss(q_target, q_pred).to(self.q_eval.device) * weights
+        elif self.replay_experience == 'Random':
+            td_errors = self.q_eval.loss(q_target, q_pred).to(self.q_eval.device)
+            batch_idxs = []
         return td_errors, batch_idxs
 
     def learn(self):
@@ -134,9 +143,19 @@ class Agent():
         self.q_eval.train()
         self.q_eval.optimiser.zero_grad()
         loss, idxs = self.compute_loss()
-        lossmean = loss.mean()
 
-        lossmean.backward()
+        if self.replay_experience == 'Priority':
+            lossmean = loss.mean()
+            lossmean.backward()
+
+            # update priorities
+            for idx, td_error in zip(idxs, loss.cpu().detach().numpy()):
+                self.memory.update_priorities(idx, td_error)
+
+        elif self.replay_experience == 'Random':
+            lossmean = loss
+            loss.backward()
+
 
         # T.nn.utils.clip_grad_norm_(self.q_eval.parameters(), max_norm=0.5)
 
@@ -144,10 +163,5 @@ class Agent():
         self.learn_step_counter += 1
         # self.dec_epsilon()
         # self.inc_beta(0.01)
-
-
-        # update priorities
-        for idx, td_error in zip(idxs, loss.cpu().detach().numpy()):
-            self.memory.update_priorities(idx, td_error)
 
         return lossmean

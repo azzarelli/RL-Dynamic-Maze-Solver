@@ -16,7 +16,7 @@ class ConvDDQN(nn.Module):
         self.input_dim = input_dim
         self.num_actions = n_actions
 
-        self.n_hidden = 256
+        self.n_hidden = 512
 
         self.conv = nn.Sequential(
             nn.Conv2d(input_dim[0], 32, kernel_size=8, stride=4),
@@ -43,8 +43,8 @@ class ConvDDQN(nn.Module):
         )
 
         self.optimiser = optim.Adam(self.parameters(), lr=lr)
-        self.loss = nn.MSELoss()
-
+        # self.loss = nn.MSELoss()
+        self.loss = nn.SmoothL1Loss()
         # self.loss = nn.HuberLoss()
         #self.loss = nn.L1Loss()
 

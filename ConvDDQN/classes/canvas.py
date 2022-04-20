@@ -143,16 +143,16 @@ class Canvas:
         self.surface.blit(self.font.render('Path Len: '+str(len(self.path)), True, (200, 200, 200)),
                           (1100, 160))
 
-        self.surface.blit(self.font.render('Score: ' + str(float('%.2f' % score))+' + '+ str(float('%.2f' % reward)), True, (200, 200, 200)),
+        self.surface.blit(self.font.render('Score: ' + str(float('%.5f' % score))+'  |  '+ str(float('%.5f' % reward)), True, (200, 200, 200)),
                           (1100, 190))
         self.surface.blit(self.font.render('Walls: ' + str(wall), True,(200, 200, 200)),
             (1100, 220))
         self.surface.blit(self.font.render('Revisited: ' + str(visit), True,(200, 200, 200)),
             (1100, 250))
 
-        self.surface.blit(self.font.render('Epsilon: ' + str(float('%.2f' % epsilon)), True, (200, 200, 200)),
+        self.surface.blit(self.font.render('Epsilon: ' + str(float('%.5f' % epsilon)), True, (200, 200, 200)),
                           (1100, 280))
-        self.surface.blit(self.font.render('Learn Rate: ' + str(float('%.2f' % lr)), True, (200, 200, 200)),
+        self.surface.blit(self.font.render('Learn Rate: ' + str(float('%.5f' % lr)), True, (200, 200, 200)),
                           (1100, 310))
         if acts != []:
             # acts = acts.data.cpu().numpy()[0]

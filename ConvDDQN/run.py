@@ -22,7 +22,11 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
 
     name = 'probe'
     img_size = 37
-    channels = 2
+    multi_frame = False
+    if multi_frame == True:
+        channels = 2
+    else:
+        channels = 3
 
     # Default (Fixed) Parameters
     epsilon_min = epsilon_min
@@ -34,10 +38,12 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
     memsize = 100000 # https://arxiv.org/abs/1712.01275
     batch_size = batch_size
 
-    env = Environment(img_size=img_size)
+    env = Environment(img_size=img_size, multi_frame=multi_frame)
+
     agent = Agent(gamma=gamma, epsilon=epsilon, lr=lr,
-                  input_dims=input_dims, n_actions=output_dims, mem_size=memsize, eps_min=epsilon_min,
-                  batch_size=batch_size, eps_dec=epsilon_dec, replace=replace_testnet, name=netname)
+                  input_dims=input_dims, n_actions=output_dims, mem_size=memsize, batch_size=batch_size,
+                  eps_min=epsilon_min, eps_dec=epsilon_dec,
+                  replace=replace_testnet, name=netname, multi_frame=multi_frame)
 
     if canv_chck:
         canv = Canvas()
@@ -66,7 +72,6 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
             while not done:
                 action, acts, hs = agent.greedy_epsilon(observation, hs)
                 observation_, reward, done, info = env.step(action, score)
-
                 path = len(env.actorpath)
 
                 score += reward

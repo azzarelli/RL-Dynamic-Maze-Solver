@@ -10,6 +10,7 @@ class Plotter:
         self.name = name
 
         self.scores = []
+        self.loss = []
         self.scores_avg = []
         self.eps_history = []
 
@@ -42,9 +43,9 @@ class Plotter:
 
         print('Plotting ...')
         plt.figure()
-        plt.plot(self.scores, color='yellow', label='Raw')
-        plt.plot(self.scores_avg, color='orange', label='Average')
-        plt.plot(self.path_cntrs, color='blue', label='Path Length')
+        plt.plot(self.scores, color='yellow', label='Raw', alpha=0.5)
+        plt.plot(self.scores_avg, color='orange', label='Average', alpha=0.5)
+        plt.plot(self.path_cntrs, color='blue', label='Path Length', alpha=0.5)
         plt.xlabel('Epochs')
         plt.legend()
         plt.ylabel('Avg Score')
