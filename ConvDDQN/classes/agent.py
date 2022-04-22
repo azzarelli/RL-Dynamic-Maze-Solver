@@ -12,7 +12,7 @@ class Agent():
     def __init__(self, gamma, epsilon, lr, n_actions, input_dims,
                  mem_size, batch_size, eps_min=0.01, eps_dec=5e-7,
                  replace=1000, save_dir='networkdata/', name='maze-test-1.pt', multi_frame:bool=True, memtype:str='Random',
-                 alpha=0.7, beta=0.4):
+                 alpha=0.6, beta=0.5):
         # Network parameters
         self.learn_step_counter = 0
         self.gamma = gamma
@@ -54,17 +54,19 @@ class Agent():
         with T.no_grad():
             actions = T.Tensor([])
             # if we randomly choose max expected reward action
-            if np.random.random() > self.epsilon:
-                #state = (observation).to(self.q_eval.device)
-                state = T.FloatTensor(observation).float().unsqueeze(0).to(self.q_eval.device)
-                # state = T.tensor([observation], dtype=T.float).to(self.q_eval.device)
-                Q, hs = self.q_eval.forward(state, hs)
-                action = np.argmax(Q.cpu().detach().numpy())
-                actions = Q
+            #state = (observation).to(self.q_eval.device)
+            state = T.FloatTensor(observation).float().unsqueeze(0).to(self.q_eval.device)
+            # state = T.tensor([observation], dtype=T.float).to(self.q_eval.device)
+            Q, hs = self.q_eval.forward(state, hs)
+            actions = Q
             # otherwise random action
+            if np.random.random() > self.epsilon:
+                action = np.argmax(Q.cpu().detach().numpy())
+                rand=False
             else:
                 action = np.random.choice(self.action_space)
-            return action, actions, hs
+                rand=True
+            return action, actions, hs, rand
 
     def store_transition(self, state, state_, reward, action, done):
         self.memory.add(state, state_, reward, action, done)
@@ -157,7 +159,7 @@ class Agent():
             loss.backward()
 
 
-        # T.nn.utils.clip_grad_norm_(self.q_eval.parameters(), max_norm=0.5)
+        T.nn.utils.clip_grad_norm_(self.q_eval.parameters(), max_norm=0.5)
 
         self.q_eval.optimiser.step()
         self.learn_step_counter += 1

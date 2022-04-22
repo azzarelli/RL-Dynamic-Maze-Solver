@@ -96,7 +96,10 @@ class Canvas:
                         celldimX, celldimY, col=BLUE)
 
     def step(self, visible, idx, path, acts, action, score, reward,
-             tep_cntr, ep, wall, visit, obs, epsilon, lr):
+             tep_cntr, ep, wall, visit, obs, epsilon, lr,
+             gamma=None, rand=None,
+             score_split=[], step_split=[],
+             alpha=None, beta=None, EP=None, memsize=None, batchsize=None):
         """Run the pygame environment for displaying the maze structure and visible (local) environment of actor
         """
         self.get_event()
@@ -107,7 +110,10 @@ class Canvas:
 
         self.placeCells()
         self.draw_visible(acts, action,  score, reward, tep_cntr, ep,
-                          wall, visit, obs, epsilon, lr)
+                          wall, visit, obs, epsilon, lr,
+                          gamma=gamma, rand=rand,
+                          score_split=score_split, step_split=step_split,
+                          alpha=alpha, beta=beta, EP=EP, memsize=memsize, batchsize=batchsize)
         pygame.display.update()
         self.step_cntr += 1
 
@@ -117,7 +123,10 @@ class Canvas:
         self.path = path
 
     def draw_visible(self, acts, action, score, reward, step_cntr, ep, wall,
-                     visit, obs, epsilon, lr):
+                     visit, obs, epsilon, lr,
+                     gamma=None, rand=None,
+                     score_split=[], step_split=[],
+                     alpha=None, beta=None,EP=None, memsize=None, batchsize=None):
         """Draw the visible environment around the actor
 
         Notes
@@ -136,25 +145,69 @@ class Canvas:
         4 - right
 
         """
+        d = 240
         self.surface.blit(self.font.render('Episode: '+str(ep), True, (200, 200, 200)),
-                          (1100, 100))
-        self.surface.blit(self.font.render('Steps: '+str(step_cntr), True, (200, 200, 200)),
-                          (1100, 130))
+                          (1100, d))
+        self.surface.blit(self.font.render('Score: ' + str(float('%.5f' % score)) + '  |  ' + str(float('%.5f' % reward)), True,(200, 200, 200)),
+                          (1100, d+20))
+        self.surface.blit(self.font.render('Total Steps: '+str(step_cntr), True, (200, 200, 200)),
+                          (1100, d+40))
         self.surface.blit(self.font.render('Path Len: '+str(len(self.path)), True, (200, 200, 200)),
-                          (1100, 160))
+                          (1100, d+60))
+        d = d+90
+        self.surface.blit(self.font.render('Stay | Visited | Wall', True, (200, 200, 200)),
+                          (1100, d))
 
-        self.surface.blit(self.font.render('Score: ' + str(float('%.5f' % score))+'  |  '+ str(float('%.5f' % reward)), True, (200, 200, 200)),
-                          (1100, 190))
-        self.surface.blit(self.font.render('Walls: ' + str(wall), True,(200, 200, 200)),
-            (1100, 220))
-        self.surface.blit(self.font.render('Revisited: ' + str(visit), True,(200, 200, 200)),
-            (1100, 250))
+        if score_split != []:
+            d = d+20
+            self.surface.blit(self.font.render(str(float('%.1f' % score_split[0]))+'    '+
+                                               str(float('%.1f' % score_split[1]))+'    '+
+                                               str(float('%.1f' % score_split[2]))
+                                               , True, (200, 200, 200)), (1100, d))
 
+        if step_split != []:
+            d = d+20
+            self.surface.blit(self.font.render('  '+str(step_split[0])+'       '+
+                                               str(step_split[1])+'       '+
+                                               str(step_split[2])
+                                               , True, (200, 200, 200)), (1100, d))
+        d = d+30
+        self.surface.blit(self.font.render('Gamma: ' + str(float('%.5f' % gamma)), True, (200, 200, 200)),
+                          (1100, d))
+        d = d+20
         self.surface.blit(self.font.render('Epsilon: ' + str(float('%.5f' % epsilon)), True, (200, 200, 200)),
-                          (1100, 280))
+                          (1100, d))
         self.surface.blit(self.font.render('Learn Rate: ' + str(float('%.5f' % lr)), True, (200, 200, 200)),
-                          (1100, 310))
+                          (1100, d+20))
+        self.surface.blit(self.font.render('ExpRep: ' + EP, True, (200, 200, 200)),
+                          (1100, d + 40))
+        self.surface.blit(self.font.render('MemSize: ' + str(memsize), True, (200, 200, 200)),
+                          (1100, d + 60))
+        self.surface.blit(self.font.render('BatchSize: ' + str(batchsize), True, (200, 200, 200)),
+                          (1100, d + 80))
+
+        d = d+100
+
+        if alpha != None:
+            self.surface.blit(self.font.render('Alpha: ' + str(float('%.2f' % alpha)), True, (200, 200, 200)),
+                          (1100, d))
+        if beta != None:
+            self.surface.blit(self.font.render('Beta: ' + str(float('%.4f' % beta)), True, (200, 200, 200)),
+                          (1100, d+20))
+
         if acts != []:
+            self.surface.blit(self.font.render(str(float('%.3f' % acts[0][0])), True, (200, 200, 200)),
+                          (1250, 120))
+            self.surface.blit(self.font.render(str(float('%.3f' % acts[0][1])), True, (200, 200, 200)),
+                              (1350, 120))
+            self.surface.blit(self.font.render(str(float('%.3f' % acts[0][2])), True, (200, 200, 200)),
+                              (1300, 80))
+            self.surface.blit(self.font.render(str(float('%.3f' % acts[0][3])), True, (200, 200, 200)),
+                              (1300, 160))
+            self.surface.blit(self.font.render(str(float('%.3f' % acts[0][0])), True, (200, 200, 200)),
+                              (1300, 120))
+
+        if acts != [] and rand==False:
             # acts = acts.data.cpu().numpy()[0]
             if action == 0:action_str = 'Stay'
             elif action == 1:action_str = 'Up'
@@ -188,7 +241,7 @@ class Canvas:
 
                 self.drawSquareCell(
                     1100 + (cell_size*(col - 1)),
-                    350 + (cell_size*(row - 1)),
+                    95 + (cell_size*(row - 1)),
                     cell_size, cell_size, col=obs_i)
 
                 # if row == 1 and col == 1:

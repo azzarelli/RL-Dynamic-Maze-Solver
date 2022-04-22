@@ -49,11 +49,13 @@ action_dir = {"0": {"id":'stay',
 
 global rewards_dir
 rewards_dir = {"newmax":+0.,
-                "towards": +1.,
-               "away":+1.,
-              "visited":-.05,
-              "wall":-.05,
-              "stay":-.05
+               "towards": -.001,
+               "away":-.002,
+               "visited":-1.,
+               "wall":-1.,
+               "stay":-1.,
+               "bonus":+20.,
+               "end":-10.
               }
 
 
@@ -70,8 +72,11 @@ class Environment:
 
         self.moved_max = 0
         self.init = 0
+        self.bonus_taken = 0
 
         self.window_size = img_size
+        self.visible_size = 10
+        self.img_history = []
 
         self.actor_pos = (1, 1)
         self.actorpath = [self.actor_pos]
@@ -81,15 +86,16 @@ class Environment:
         self.loc = []
         self.observation = self.observe_environment
 
-
     @property
     def reset(self):
         self.step_cntr = 0
         self.wall_cntr = 0
         self.stay_cntr = 0
         self.visit_cntr = 0
-        self.moved_max = 0
         self.score = 0
+
+        self.moved_max = 0
+        self.bonus_taken = 0
         self.init = 0
 
         self.direction = 'stay'
@@ -97,6 +103,8 @@ class Environment:
         self.actor_pos = (1, 1)
         self.actorpath = [self.actor_pos]
         self.loc = []
+        self.img_history = []
+
         self.observation_map = [[[50,50,50] for i in range(200)] for j in range(200)]
 
         self.observation = self.observe_environment
@@ -106,22 +114,32 @@ class Environment:
 
     transform = transforms.Compose([transforms.ToTensor()])
 
+    def get_split_score(self):
+        global rewards_dir
+        vis = self.visit_cntr*rewards_dir['visited']
+        stay = self.stay_cntr*rewards_dir['stay']
+        wall = self.wall_cntr*rewards_dir['wall']
+        return [stay, vis, wall]
+
+    def get_split_step(self):
+        return [self.stay_cntr, self.visit_cntr, self.wall_cntr]
+
     def get_direction(self, obs):
         x,y = self.actor_pos
         if self.direction == 'stay':
             pass
         elif self.direction == 'up':
             for i in range(3):
-                obs[15][17+i] = [255, 255, 255]
+                obs[2][17+i] = [255, 255, 255]
         elif self.direction == 'down':
             for i in range(3):
-                obs[21][17+i] = [255, 255, 255]
+                obs[35][17+i] = [255, 255, 255]
         elif self.direction == 'left':
             for i in range(3):
-                obs[17+i][15] = [255, 255, 255]
+                obs[17+i][2] = [255, 255, 255]
         elif self.direction == 'right':
             for i in range(3):
-                obs[17+i][21] = [255, 255, 255]
+                obs[17+i][35] = [255, 255, 255]
         return obs
 
     def get_digits(self, obs, getType):
@@ -198,11 +216,10 @@ class Environment:
 
         self.observation_map[y][x] = [255, 0, 0]
         self.observation_map[198][198] = [0, 0, 255]
+
         if self.actor_pos not in self.actorpath:
-            self.visit_cntr = 0
             self.actorpath.append(self.actor_pos)
-        else:
-            self.visit_cntr += 1
+
 
         diff = int((self.window_size-1)/2)
         x_lb, x_ub = x-diff, x+diff
@@ -212,9 +229,10 @@ class Environment:
 
         for j, y_i in enumerate(range(y_lb, y_ub+1)):
             for i, x_i in enumerate(range(x_lb, x_ub+1)):
+                v = self.visible_size
                 if y_i < 0 or x_i < 0:
                     pass
-                elif (x_i >= x -1 and x+1 >= x_i) and (y_i >= y-1 and y+1 >= y_i):
+                elif (x_i >= x -v and x+v >= x_i) and (y_i >= y-v and y+v >= y_i):
                     obs[j][i] = self.observation_map[y_i][x_i]
                 else:
                     pass # obs[j][i] = self.observation_map[y_i][x_i]
@@ -222,8 +240,8 @@ class Environment:
                 # else:
                 #     obs[j][i] = self.observation_map[y_i][x_i]
 
-        obs = self.get_digits(obs, '6digitposition')
-        obs = self.get_digits(obs, '4digitscore')
+        # obs = self.get_digits(obs, '6digitposition')
+        # obs = self.get_digits(obs, '4digitscore')
         obs = self.get_direction(obs)
 
 
@@ -237,9 +255,10 @@ class Environment:
             self.obs2D = np.array(img)
             img = ImageOps.grayscale(img)
             img.save('observationmap_grey.png')
+            self.img_history.append(img)
 
             if self.init == 0:
-                self.obs = [img for i in range(2)]
+                self.obs = [img for i in range(4)]
                 imgs = T.stack([self.transform(o) for o in self.obs], dim=1)[0]
                 self.init += 1
             else:
@@ -250,6 +269,7 @@ class Environment:
         else:
             img = Image.fromarray(obsv_, 'RGB')
             img.save('observationmap.png')
+            self.img_history.append(img)
 
             self.obs2D = np.array(img)
             img.save('observationmap_col.png')
@@ -299,10 +319,10 @@ class Environment:
         if self.step_cntr > 4000: #or
             print('I became an old man and dies in this maze...')
             return self.observe_environment, -0., True, {} # terminate
-        # If we spent too long vising places we have already been
-        # if self.visit_cntr > 20:
-        #     print('Visisted Timeout')
-        #     return self.observe_environment, -0., True, {}  # terminate
+        # Only allow penalisations a max of 600 times
+        if self.wall_cntr + self.stay_cntr > 10*len(self.actorpath)/9:
+            print('Visited Timeout')
+            return self.observe_environment,  rewards_dir['end'], True, {}  # terminate
 
         obsv_mat = self.loc # get prior position
         x, y = self.actor_pos
@@ -310,33 +330,108 @@ class Environment:
         x_loc, y_loc = (1 + x_inc, 1 + y_inc) # Update Local Position
         if action_dir[act_key]['id'] == 'stay': # if we stay for no reason then penalise
             self.stay_cntr += 1
-            return self.observe_environment, rewards_dir['stay'], True, {}
+            return self.observe_environment, rewards_dir['stay'], False, {}
 
         if obsv_mat[y_loc][x_loc][0] == 0: # check for a wall
             self.wall_cntr += 1
-            return self.observe_environment, rewards_dir['wall'], True, {} # walking into walls is fatal
+            return self.observe_environment, rewards_dir['wall'], False, {} # walking into walls is fatal
 
-
-        # nmax = np.sqrt(((x+x_inc)**2+(y+y_inc)**2))
-        # if nmax > self.moved_max:
-        #     self.moved_max = nmax
-        #     self.actor_pos = new_pos = (x + x_inc, y + y_inc)  # new global position if we move into a free space
-        #
-        #     return self.observe_environment, rewards_dir['newmax'], False, {}
 
         # So if we do successfully move
         self.actor_pos = new_pos = (x + x_inc, y + y_inc) # new global position if we move into a free space
 
         # # Have we visited this spot already?
         if self.actor_pos in self.actorpath:
-            return self.observe_environment, rewards_dir['visited'], True, {}
+            self.visit_cntr += 1
+            if self.visit_cntr > 0: # we dont want to revisit prior positions
+                return self.observe_environment, rewards_dir['end'], True, {}
+
+            return self.observe_environment, rewards_dir['visited'], False, {}
+
+        if self.actor_pos in self.actorpath:
+            self.visit_cntr += 1
 
         # Have we reached the end?
         if new_pos == (199, 199):
-            return self.observation, 100., True, {}
+            return self.observation, 100000., True, {}
 
+        if (len(self.actorpath) + 1) % 5 == 0 and self.bonus_taken == 0:
+            self.bonus_taken = 1
+            print('Granted bonus ', str(len(self.actorpath)))
+            return self.observe_environment, rewards_dir['bonus'], False, {}
+
+        self.bonus_taken = 0
         if x_inc > 0 or y_inc > 0:
             return self.observe_environment, rewards_dir['towards'], False, {}
 
         # finally our only choice is to move away from goal
         return self.observe_environment, rewards_dir['away'], False, {}
+
+
+
+    # def step(self, action, score):
+    #     """Sample environment dependant on action which has occurred
+    #
+    #     Action Space
+    #     ------------
+    #     0 - no move
+    #     1 - up
+    #     2 - left
+    #     3 - down
+    #     4 - right
+    #
+    #     """
+    #     self.score = score
+    #     self.step_cntr += 1 # increment time
+    #     global action_dir # Fetch action directory containing the properties of each action w.r.t environment
+    #     act_key = str(action)
+    #     global rewards_dir # Fetch reward directory
+    #
+    #     x_inc, y_inc = action_dir[act_key]['move'] # fetch movement from position (1,1)
+    #
+    #     self.direction = action_dir[act_key]['id']
+    #
+    #     # If too much time elapsed you die in maze :( (terminate maze at this point)
+    #     if self.step_cntr > 4000: #or
+    #         print('I became an old man and dies in this maze...')
+    #         return self.observe_environment, -0., True, {} # terminate
+    #     # If we spent too long vising places we have already been
+    #     if self.visit_cntr + self.wall_cntr > 600:
+    #         print('Visisted Timeout')
+    #         return self.observe_environment, -1., True, {}  # terminate
+    #
+    #     obsv_mat = self.loc # get prior position
+    #     x, y = self.actor_pos
+    #
+    #     x_loc, y_loc = (1 + x_inc, 1 + y_inc) # Update Local Position
+    #     if action_dir[act_key]['id'] == 'stay': # if we stay for no reason then penalise
+    #         self.stay_cntr += 1
+    #         return self.observe_environment, rewards_dir['stay'], False, {}
+    #
+    #     if obsv_mat[y_loc][x_loc][0] == 0: # check for a wall
+    #         self.wall_cntr += 1
+    #         return self.observe_environment, rewards_dir['wall'], False, {} # walking into walls is fatal
+    #
+    #     # nmax = np.sqrt(((x+x_inc)**2+(y+y_inc)**2))
+    #     # if nmax > self.moved_max:
+    #     #     self.moved_max = nmax
+    #     #     self.actor_pos = new_pos = (x + x_inc, y + y_inc)  # new global position if we move into a free space
+    #     #
+    #     #     return self.observe_environment, rewards_dir['newmax'], False, {}
+    #
+    #     # So if we do successfully move
+    #     self.actor_pos = new_pos = (x + x_inc, y + y_inc) # new global position if we move into a free space
+    #
+    #     # # Have we visited this spot already?
+    #     if self.actor_pos in self.actorpath:
+    #         return self.observe_environment, rewards_dir['visited'], False, {}
+    #
+    #     # Have we reached the end?
+    #     if new_pos == (199, 199):
+    #         return self.observation, 100., True, {}
+    #
+    #     if x_inc > 0 or y_inc > 0:
+    #         return self.observe_environment, rewards_dir['towards'], False, {}
+    #
+    #     # finally our only choice is to move away from goal
+    #     return self.observe_environment, rewards_dir['away'], False, {}
