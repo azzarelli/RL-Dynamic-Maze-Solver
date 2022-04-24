@@ -1,8 +1,7 @@
 import pygame
 import sys
 
-from lib.read_maze import load_maze, get_local_maze_information
-
+from DDQN.lib.read_maze import load_maze
 
 SCREENSIZE = W, H = 1400, 1000
 mazeWH = 1000

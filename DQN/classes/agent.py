@@ -1,6 +1,6 @@
 import numpy as np
 import torch as T
-from classes.replaybuffer import ReplayBuffer # Simple Replay Buffer
+from DDQN.classes.replaybuffer import ReplayBuffer # Simple Replay Buffer
 #from classes.replaybuffer_ import ReplayBuffer
 #from DQN.classes.memory.per import PrioritizedReplayBuffer
 
