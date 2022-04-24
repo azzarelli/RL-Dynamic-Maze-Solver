@@ -1,19 +1,19 @@
 import numpy as np
 import torch as T
-import time
-from classes.replaybuffer import PrioritizedBuffer # Simple Replay Buffer
+from DDQN.classes.replaybuffer import PrioritizedBuffer, ReplayBuffer # Simple Replay Buffer
 #from classes.replaybuffer_ import ReplayBuffer
 
-from classes.ddqn import DDQN
-from classes.convddqn import ConvDDQN
-from torchvision.transforms import  transforms
+from DDQN.classes.ddqn import DDQN
 
 
 class Agent():
-    def __init__(self, gamma, epsilon, lr, n_actions, input_dims,
-                 mem_size, batch_size, eps_min=0.01, eps_dec=5e-7,
-                 replace=1000, save_dir='networkdata/', name='maze-test-1.pt',
-                 alpha=0.7, beta=0.4):
+    def __init__(self,  n_actions, input_dims, gamma:float=0.9,  lr:float=0.01,
+                 epsilon: float = 1.0, eps_min:float=0.01, eps_dec:float=5e-7,
+                 mem_size:int=10000, batch_size:int=64, alpha:float=0.7, beta:float=0.4,
+                 replace:int=1000,
+                 save_dir:str='networkdata/', name:str='maze-test-1.pt', net_type='DDQN',
+                 multi_frame: bool = True, memtype: str = 'Priority'
+                 ):
         # Network parameters
         self.learn_step_counter = 0
         self.gamma = gamma
@@ -35,13 +35,21 @@ class Agent():
 
         self.action_space = [i for i in range(self.n_actions)]
 
-        self.memory = PrioritizedBuffer(mem_size, self.batch_size, self.alpha, self.beta)
+        self.replay_experience = memtype
+        self.multi_frame = multi_frame
+        if self.replay_experience == 'Priority':
+            self.memory = PrioritizedBuffer(mem_size, self.batch_size, self.alpha, self.beta)
+        elif self.replay_experience == 'Random':
+            # input_shape, max_size, batch_size, beta):
+            self.memory = ReplayBuffer(self.input_dims, mem_size, self.batch_size, self.beta, multi_frame=self.multi_frame)
 
-        self.q_eval = DDQN(self.lr, self.n_actions, input_dim=input_dims,
-                           name=name, save_dir=self.save_dir)
-        self.q_next = DDQN(self.lr, self.n_actions, input_dim=input_dims,
-                           name=name+'.next', save_dir=self.save_dir)
-        self.q_next.eval()
+
+        if net_type == 'DDQN':
+            self.q_eval = DDQN(self.lr, self.n_actions, input_dim=input_dims,
+                               name=name, save_dir=self.save_dir)
+            self.q_next = DDQN(self.lr, self.n_actions, input_dim=input_dims,
+                               name=name+'.next', save_dir=self.save_dir)
+            self.q_next.eval()
 
 
     def greedy_epsilon(self, observation):
@@ -122,7 +130,6 @@ class Agent():
         # loss = (loss * w).mean()
 
         td_errors = T.pow(q_pred - q_target, 2) * weights
-
 
         return td_errors, batch_idxs
 

@@ -14,9 +14,6 @@ from classes.canvas import Canvas
 
 from classes.plotter import Plotter
 
-import torchvision
-import torchvision.transforms as transforms
-
 def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
         gamma=0.9, episodes=100, netname='default.pt', epsilon_min=0.01, ep_dec = 1e-4, batch_size=128, beta_inc=0.1):
 
@@ -25,7 +22,7 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
     # Default (Fixed) Parameters
     epsilon_min = epsilon_min
     epsilon_dec = ep_dec
-    input_dims = [503]
+    input_dims = [303]
     output_dims = 5
 
     replace_testnet = 3

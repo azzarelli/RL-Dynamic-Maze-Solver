@@ -10,15 +10,10 @@ spaces.
 
 
 """
-import time
-from lib.read_maze import get_local_maze_information
+from DDQN.lib.read_maze import get_local_maze_information
 import numpy as np
 from PIL import Image
 from PIL import ImageOps
-from matplotlib import cm
-
-from torchvision.transforms import transforms
-import torch as T
 
 # We set the action-space directory to access
 global action_dir
@@ -57,7 +52,7 @@ class Environment:
         self.not_observed = 0
         self.observation = self.observe_environment
         o = self.observation[:-3]  # set up empty state
-        self.observations = [o[(i) * int(len(o) / 5):(i + 1) * int(len(o) / 5)] for i in range(5)]
+        self.observations = [o[(i) * int(len(o) / 3):(i + 1) * int(len(o) / 3)] for i in range(3)]
         self.obs2D = []
 
 
@@ -77,12 +72,12 @@ class Environment:
         self.not_observed = 0
         self.observation = self.observe_environment
         o = self.observation[:-3]  # set up empty state
-        self.observations = [o[(i) * int(len(o) / 5):(i+1) * int(len(o) / 5)] for i in range(5)]
+        self.observations = [o[(i) * int(len(o) / 3):(i+1) * int(len(o) / 3)] for i in range(3)]
 
         return self.observation
 
     def observation_2dlarge(self, l1, name):
-        obsv = [[[0, 0, 0] for j in range(self.observation_size)] for i in range(self.observation_size*5)]
+        obsv = [[[0, 0, 0] for j in range(self.observation_size)] for i in range(self.observation_size*3)]
         for i, l in enumerate(l1):
             c, d = i % self.observation_size, int(i / self.observation_size)
             if l == 1:
@@ -202,14 +197,14 @@ class Environment:
 
             # only change prior observation when a change has occured
             if l2 != l1:
-
                 self.observations.append(l2)
                 self.observations.pop(1)
                 # self.prior_observation = l2
 
 
-            l = self.observations[0] + self.observations[4] +self.observations[3] +self.observations[2]+\
-                self.observations[1]
+            # l = self.observations[0] + self.observations[4] +self.observations[3] +self.observations[2]+\
+            #     self.observations[1]
+            l = self.observations[0] + self.observations[2] + self.observations[1]
 
             self.obs2D, img2 = self.observation_2dlarge(l, '2')
 
@@ -219,7 +214,7 @@ class Environment:
         else:
             l2 = l1.copy()
             self.not_observed += 1
-            l = l1 + l2 + l2 + l2 + l2
+            l = l1 + l2 + l2
             self.obs2D, img2 = self.observation_2dlarge(l, '2')
 
             o = l + [self.actor_pos[0], self.actor_pos[1], len(self.actorpath)]
@@ -256,6 +251,12 @@ class Environment:
         # if self.visit_cntr > 50:
         #     print('Visisted Timeout')
         #     return self.observe_environment, -2., True, {}  # terminate
+
+
+        if self.visit_cntr > 1 or self.wall_cntr > 1:
+            print('Visisted Timeout')
+            return self.observe_environment, -1., True, {}  # terminate
+
 
         obsv_mat = self.loc # get prior position
         x, y = self.actor_pos

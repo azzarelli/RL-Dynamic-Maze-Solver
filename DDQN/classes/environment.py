@@ -11,8 +11,7 @@ spaces.
 
 """
 import time
-from lib.read_maze import get_local_maze_information
-import numpy as np
+from DDQN.lib.read_maze import get_local_maze_information
 
 # We set the action-space directory to access
 global action_dir
