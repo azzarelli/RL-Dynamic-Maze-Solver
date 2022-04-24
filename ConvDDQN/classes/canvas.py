@@ -1,8 +1,7 @@
 import pygame
 import sys
 
-from lib.read_maze import load_maze, get_local_maze_information
-
+from DDQN.lib.read_maze import load_maze
 
 SCREENSIZE = W, H = 1400, 1000
 mazeWH = 1000
@@ -196,11 +195,13 @@ class Canvas:
                           (1100, d+20))
 
         if acts != []:
-            self.surface.blit(self.font.render(str(float('%.3f' % acts[0][0])), True, (200, 200, 200)),
-                          (1250, 120))
-            self.surface.blit(self.font.render(str(float('%.3f' % acts[0][1])), True, (200, 200, 200)),
-                              (1350, 120))
+            # self.surface.blit(self.font.render(str(acts[0]), True, (200, 200, 200)),
+            #                   (1100, 100))
             self.surface.blit(self.font.render(str(float('%.3f' % acts[0][2])), True, (200, 200, 200)),
+                          (1250, 120))
+            self.surface.blit(self.font.render(str(float('%.3f' % acts[0][4])), True, (200, 200, 200)),
+                              (1350, 120))
+            self.surface.blit(self.font.render(str(float('%.3f' % acts[0][1])), True, (200, 200, 200)),
                               (1300, 80))
             self.surface.blit(self.font.render(str(float('%.3f' % acts[0][3])), True, (200, 200, 200)),
                               (1300, 160))

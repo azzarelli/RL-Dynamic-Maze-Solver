@@ -62,6 +62,7 @@ class Agent():
             # otherwise random action
             if np.random.random() > self.epsilon:
                 action = np.argmax(Q.cpu().detach().numpy())
+                # print(actions, action)
                 rand=False
             else:
                 action = np.random.choice(self.action_space)
@@ -76,13 +77,27 @@ class Agent():
             print('Update target network...')
             self.q_next.load_state_dict(self.q_eval.state_dict())
 
-    def step_params(self,b):
-        self.dec_epsilon()
+    def step_params(self,b, step, episode):
+        self.dec_epsilon(step, episode)
         self.inc_beta(b)
 
-    def dec_epsilon(self):
-        self.epsilon = self.epsilon - self.eps_dec \
-            if self.epsilon > self.eps_min else self.eps_min
+    def dec_epsilon(self, step, episode):
+        a = 0.9  # max factor
+        x = step + 1  # step in current approach
+        f = episode + 1  # episode
+
+        if episode > 6000:
+            b = 1. / float(f)
+            self.epsilon = a * np.arctan((b * x)) / (np.pi / 2)
+        elif episode > 4000:
+            b = 2. / float(f)
+            self.epsilon = a * np.arctan((b * x)) / (np.pi / 2)
+        elif episode > 2000:
+            b = 4. / float(f)
+            self.epsilon = a * np.arctan((b * x)) / (np.pi / 2)
+        else:
+            b = 6. / float(f)
+            self.epsilon = a * np.arctan((b * x)) / (np.pi / 2)
 
     def inc_beta(self, b):
         self.memory.beta = self.memory.beta + b if self.memory.beta < 1 else 1
@@ -113,7 +128,9 @@ class Agent():
         hs = (T.autograd.Variable(T.zeros(1, 512).float()).to(self.q_eval.device), T.autograd.Variable(T.zeros(1, 512).float()).to(self.q_eval.device))
         q_pred, hs = self.q_eval.forward(states, hs)
         Q_pred = q_pred.gather(1, actions.unsqueeze(1)).squeeze(1)
-        Q_next, hs = self.q_next.forward(states_, hs)
+
+        with T.no_grad():
+            Q_next, hs = self.q_next.forward(states_, hs)
 
         q_pred = Q_pred
         q_next = Q_next
@@ -129,10 +146,11 @@ class Agent():
         #w = T.unsqueeze(weights, 1).to(self.q_eval.device)
         # loss = (loss * w).mean()
 
+        # perhaps use q_trarget.detach()
         if self.replay_experience == 'Priority':
-            td_errors = self.q_eval.loss(q_target, q_pred).to(self.q_eval.device) * weights
+            td_errors = self.q_eval.loss(q_target.detach(), q_pred).to(self.q_eval.device) * weights
         elif self.replay_experience == 'Random':
-            td_errors = self.q_eval.loss(q_target, q_pred).to(self.q_eval.device)
+            td_errors = self.q_eval.loss(q_target.detach(), q_pred).to(self.q_eval.device)
             batch_idxs = []
         return td_errors, batch_idxs
 
@@ -141,7 +159,9 @@ class Agent():
         if not self.memory.is_sufficient():
             return
 
-        #time.sleep(5) # delay for time animation
+        # with T.no_grad():
+
+        # time.sleep(5) # delay for time animation
         self.q_eval.train()
         self.q_eval.optimiser.zero_grad()
         loss, idxs = self.compute_loss()
@@ -159,7 +179,7 @@ class Agent():
             loss.backward()
 
 
-        T.nn.utils.clip_grad_norm_(self.q_eval.parameters(), max_norm=0.5)
+        # T.nn.utils.clip_grad_norm_(self.q_eval.parameters(), max_norm=0.5)
 
         self.q_eval.optimiser.step()
         self.learn_step_counter += 1

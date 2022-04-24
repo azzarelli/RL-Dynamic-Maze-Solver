@@ -21,10 +21,10 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
         gamma=0.9, episodes=100, netname='default.pt', epsilon_min=0.01, ep_dec = 1e-4, batch_size=128, beta_inc=0.01):
 
     name = 'probe'
-    EP = 'Priority' # Random / Priority
+    EP = 'Random' # Random / Priority
 
     img_size = 37
-    multi_frame = True
+    multi_frame = False
 
     if multi_frame == True:
         channels = 4
@@ -72,16 +72,11 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
 
             hs = None
             score = 0
+            reward = 0
+
             while not done:
                 action, acts, hs, rand = agent.greedy_epsilon(observation, hs)
-                observation_, reward, done, info = env.step(action, score)
-                path = len(env.actorpath)
 
-                score += reward
-                agent.store_transition(observation, observation_, reward, action, int(done))
-
-                loss = agent.learn()
-                observation = observation_
 
                 if canv_chck:
                     canv.step(env.obs2D.copy(), env.actor_pos, env.actorpath, acts.data.cpu().numpy(), action,
@@ -91,7 +86,17 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
                               score_split=env.get_split_score(), step_split=env.get_split_step(), rand=rand,
                               alpha=agent.alpha, beta=agent.memory.beta, EP=EP, memsize=memsize, batchsize=batch_size)
 
-            agent.step_params(beta_inc)
+
+                observation_, reward, done, info = env.step(action, score)
+                path = len(env.actorpath)
+
+                score += reward
+                agent.store_transition(observation, observation_, reward, action, int(done))
+
+                loss = agent.learn()
+                observation = observation_
+
+                agent.step_params(beta_inc, env.step_cntr, i)
 
             if i % replace_testnet == 0:
                 agent.replace_target_network()

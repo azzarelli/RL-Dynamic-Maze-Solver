@@ -1,15 +1,9 @@
 import random
 
 import numpy as np
-import os
-import torch as T
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
 
-from collections import deque
-from classes.sumtree import SumTree
-from torchvision.transforms import transforms
+from DDQN.classes.sumtree import SumTree
+
 
 class PrioritizedBuffer:
 

@@ -10,16 +10,13 @@ spaces.
 
 
 """
-import time
-from lib.read_maze import get_local_maze_information
+from DDQN.lib.read_maze import get_local_maze_information
 import numpy as np
 from PIL import Image
 from PIL import ImageOps
-from matplotlib import cm
 
 from torchvision.transforms import transforms
 import torch as T
-import torchvision.transforms as tv
 
 global digit_dir
 digit_dir = {'0':[[0,0,0,0,0],[0,1,1,1,0],[0,1,0,1,0],[0,1,0,1,0],[0,1,0,1,0],[0,1,1,1,0],[0,0,0,0,0]],
@@ -49,13 +46,13 @@ action_dir = {"0": {"id":'stay',
 
 global rewards_dir
 rewards_dir = {"newmax":+0.,
-               "towards": -.001,
-               "away":-.002,
-               "visited":-1.,
-               "wall":-1.,
-               "stay":-1.,
-               "bonus":+20.,
-               "end":-10.
+               "towards": +.0001,
+               "away":+.0,
+               "visited":-.1,
+               "wall":-.1,
+               "stay":-.1,
+               "bonus":+5.,
+               "end":-300.
               }
 
 
@@ -215,7 +212,7 @@ class Environment:
             self.observation_map[b][a] = [0, 255, 0]
 
         self.observation_map[y][x] = [255, 0, 0]
-        self.observation_map[198][198] = [0, 0, 255]
+        self.observation_map[198][198] = [255, 255, 255]
 
         if self.actor_pos not in self.actorpath:
             self.actorpath.append(self.actor_pos)
@@ -242,19 +239,17 @@ class Environment:
 
         # obs = self.get_digits(obs, '6digitposition')
         # obs = self.get_digits(obs, '4digitscore')
-        obs = self.get_direction(obs)
-
-
+        # obs = self.get_direction(obs)
         obsv_ = np.array(obs, dtype=np.uint8)
 
         # reset environment so reload last 5 observations:
         if self.multiple_frames == True:
             img = Image.fromarray(obsv_, 'RGB')
-            img.save('observationmap.png')
+            # img.save('observationmap.png')
 
             self.obs2D = np.array(img)
             img = ImageOps.grayscale(img)
-            img.save('observationmap_grey.png')
+            # img.save('observationmap_grey.png')
             self.img_history.append(img)
 
             if self.init == 0:
@@ -268,11 +263,11 @@ class Environment:
                 imgs = T.stack([self.transform(o) for o in self.obs], dim=1)[0]
         else:
             img = Image.fromarray(obsv_, 'RGB')
-            img.save('observationmap.png')
+            # img.save('observationmap.png')
             self.img_history.append(img)
 
             self.obs2D = np.array(img)
-            img.save('observationmap_col.png')
+            # img.save('observationmap_col.png')
 
             self.obs = img
             imgs = self.transform(img)
@@ -312,47 +307,44 @@ class Environment:
         global rewards_dir # Fetch reward directory
 
         x_inc, y_inc = action_dir[act_key]['move'] # fetch movement from position (1,1)
-
         self.direction = action_dir[act_key]['id']
+
+        x,y, = prior_pos = self.actor_pos
+        new_pos =  (x + x_inc, y + y_inc)
+        x_loc, y_loc = (1 + x_inc, 1 + y_inc) # Update Local Position
+        obsv_mat = self.loc  # get prior position
+
+        if new_pos in self.actorpath:
+            self.visit_cntr += 1
+        if action_dir[act_key]['id'] == 'stay':
+            self.stay_cntr += 1
+        if obsv_mat[y_loc][x_loc][0] == 0:
+            self.wall_cntr += 1
 
         # If too much time elapsed you die in maze :( (terminate maze at this point)
         if self.step_cntr > 4000: #or
             print('I became an old man and dies in this maze...')
             return self.observe_environment, -0., True, {} # terminate
+
         # Only allow penalisations a max of 600 times
-        if self.wall_cntr + self.stay_cntr > 10*len(self.actorpath)/9:
+        if self.visit_cntr > 0: #self.wall_cntr + self.stay_cntr + self.visit_cntr > 0: # 9*len(self.actorpath)/9:
             print('Visited Timeout')
             return self.observe_environment,  rewards_dir['end'], True, {}  # terminate
 
-        obsv_mat = self.loc # get prior position
-        x, y = self.actor_pos
 
-        x_loc, y_loc = (1 + x_inc, 1 + y_inc) # Update Local Position
         if action_dir[act_key]['id'] == 'stay': # if we stay for no reason then penalise
-            self.stay_cntr += 1
             return self.observe_environment, rewards_dir['stay'], False, {}
-
         if obsv_mat[y_loc][x_loc][0] == 0: # check for a wall
-            self.wall_cntr += 1
             return self.observe_environment, rewards_dir['wall'], False, {} # walking into walls is fatal
-
-
-        # So if we do successfully move
-        self.actor_pos = new_pos = (x + x_inc, y + y_inc) # new global position if we move into a free space
-
-        # # Have we visited this spot already?
-        if self.actor_pos in self.actorpath:
-            self.visit_cntr += 1
-            if self.visit_cntr > 0: # we dont want to revisit prior positions
-                return self.observe_environment, rewards_dir['end'], True, {}
-
+        if new_pos in self.actorpath:
+            # if self.visit_cntr > 0: # we dont want to revisit prior positions
+            #     return self.observe_environment, rewards_dir['end'], True, {}
             return self.observe_environment, rewards_dir['visited'], False, {}
 
-        if self.actor_pos in self.actorpath:
-            self.visit_cntr += 1
+        self.actor_pos = new_pos  # new global position if we move into a free space
 
         # Have we reached the end?
-        if new_pos == (199, 199):
+        if self.actor_pos == (199, 199):
             return self.observation, 100000., True, {}
 
         if (len(self.actorpath) + 1) % 5 == 0 and self.bonus_taken == 0:
