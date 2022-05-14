@@ -1,6 +1,4 @@
-import random
 import numpy
-from collections import deque
 
 class SumTree:
     write = 0

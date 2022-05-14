@@ -4,7 +4,7 @@ import time
 from ConvDDQN.classes.replaybuffer import PrioritizedBuffer, RandomBuffer # Simple Replay Buffer
 #from classes.replaybuffer_ import ReplayBuffer
 
-from ConvDDQN.classes.convddqn import ConvDDQN
+from ConvDDDQN.classes.convddqn import ConvDDQN
 from torchvision.transforms import  transforms
 
 

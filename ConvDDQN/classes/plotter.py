@@ -19,7 +19,7 @@ class Plotter:
         self.visit_cntrs = []
         self.path_cntrs = []
 
-    def data_in(self, score, wall_cntr=-1, stay_cntr=-1, visit_cntr=-1, path_cntr=-1):
+    def data_in(self, score, wall_cntr=-1, stay_cntr=-1, visit_cntr=-1, path_cntr=-1, epsilon=-1):
         self.scores.append(score)
         self.scores_avg.append(np.mean(self.scores[-100:]))
         if wall_cntr > -1:
@@ -30,7 +30,7 @@ class Plotter:
             self.visit_cntrs.append(visit_cntr)
         if path_cntr > -1:
             self.path_cntrs.append(path_cntr)
-
+        self.eps_history.append(epsilon)
         with open('testing_helpers/'+self.name+'.json', 'w') as jf:
             json.dump(self.scores, jf)
 
@@ -38,29 +38,43 @@ class Plotter:
     def show(self):
         plt.show()
 
-    def live_plot(self):
-        mpl.use("agg")
-
-        print('Plotting ...')
+    def plot_socre(self):
         plt.figure()
-        plt.plot(self.scores, color='yellow', label='Raw', alpha=0.5)
+        plt.plot(self.scores, color='green', label='Raw', alpha=0.5)
         plt.plot(self.scores_avg, color='orange', label='Average', alpha=0.5)
-        plt.plot(self.path_cntrs, color='blue', label='Path Length', alpha=0.5)
         plt.xlabel('Epochs')
         plt.legend()
         plt.ylabel('Avg Score')
-        plt.savefig('liveplot/Score_'+self.name+'.png')
+        plt.savefig('liveplot/Score_' + self.name + '.png')
+        plt.clf()
+        plt.close('all')
 
-        if self.stay_cntrs != [] and self.visit_cntrs != [] and self.wall_cntrs != []:
-            plt.figure()
-            plt.plot(self.visit_cntrs, color='green', label='# visted')
-            plt.plot(self.stay_cntrs, color='orange', label='# Stay')
-            plt.plot(self.wall_cntrs, color='lightblue', label='# Walls')
-            plt.plot(self.path_cntrs, color='red', label='Path Length')
-            plt.legend()
-            plt.xlabel('Epochs')
-            plt.ylabel('#')
-            plt.savefig('liveplot/MonitorCounters_'+self.name+'.png')
+    def plot_epsilon(self):
+        plt.figure()
+        plt.plot(self.eps_history, color='green', label='epsilon')
+        plt.legend()
+        plt.xlabel('Epochs')
+        plt.ylabel('#')
+        plt.savefig('liveplot/Epsilon_' + self.name + '.png')
+        plt.clf()
+        plt.close('all')
+
+    def plt_pathlength(self):
+        plt.figure()
+        plt.plot(self.path_cntrs, color='green', label='epsilon')
+        plt.legend()
+        plt.xlabel('Epochs')
+        plt.ylabel('#')
+        plt.savefig('liveplot/Path_' + self.name + '.png')
+        plt.clf()
+        plt.close('all')
+
+    def live_plot(self):
+        mpl.use("agg")
+        print('Plotting ...')
+        self.plot_socre()
+        self.plot_epsilon()
+        self.plt_pathlength()
 
         plt.clf()
         plt.close('all')

@@ -2,7 +2,7 @@ import random
 
 import numpy as np
 
-from DDQN.classes.sumtree import SumTree
+from old_models.DDQN.classes.sumtree import SumTree
 
 
 class PrioritizedBuffer:

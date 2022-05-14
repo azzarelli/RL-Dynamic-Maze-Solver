@@ -10,7 +10,7 @@ spaces.
 
 
 """
-from DDQN.lib.read_maze import get_local_maze_information
+from old_models.DDQN.lib.read_maze import get_local_maze_information
 import numpy as np
 from PIL import Image
 from PIL import ImageOps
