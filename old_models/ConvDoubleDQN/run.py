@@ -103,10 +103,15 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
                             np.mean(average_action[:80]) < average_action[-1]-0.1:
                         inc_grad = 1
                     average_action.pop(0)
+
+                if env.step_cntr % replace_testnet == 0:
+                    agent.replace_target_network()
+
+            agent.replace_target_network()
+
             agent.step_params(beta_inc, len(env.actorpath), i, inc_grad)
 
-            if i % replace_testnet == 0:
-                agent.replace_target_network()
+
             plt.data_in(score, wall_cntr=env.wall_cntr, stay_cntr=env.stay_cntr,
                         visit_cntr=env.visit_cntr, path_cntr=path)
 

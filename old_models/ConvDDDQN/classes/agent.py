@@ -1,11 +1,9 @@
 import numpy as np
 import torch as T
-import time
 from ConvDDQN.classes.replaybuffer import PrioritizedBuffer, RandomBuffer # Simple Replay Buffer
 #from classes.replaybuffer_ import ReplayBuffer
 
-from ConvDDDQN.classes.convddqn import ConvDDQN
-from torchvision.transforms import  transforms
+from old_models.ConvDDDQN.classes.convddqn import ConvDDQN
 
 
 class Agent():
