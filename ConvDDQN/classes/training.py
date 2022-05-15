@@ -14,7 +14,7 @@ def pretrain(name, episodes, gamma, memsize, batch_size,
              ):
 
     optimal_path = np.load('classes/optimal_path.npy')
-    warm_up_idx = 20
+    warm_up_idx = 2
     cntr = 0
     plt = Plotter(name)  # initialise the handler for plotting live statistics
 
@@ -56,16 +56,18 @@ def pretrain(name, episodes, gamma, memsize, batch_size,
             path = len(env.actorpath)  # determine new path length
             score += reward  # update episode score
 
+            if env.stay_cntr % replace_testnet == 0:
+                agent.replace_target_network()
+
             '''Store experience in memory'''
             agent.store_transition(observation, observation_, reward, action, int(done))
 
             '''Step Learning at after each action'''
             loss = agent.learn()
             observation = observation_  # set current episode for following step
-
-
             epsilon_hist.append(agent.epsilon)  # track the epsilong values
 
+        agent.replace_target_network()
         agent.step_params(beta_inc, path, i, np.mean(avg_pathlen[-30:]))  # step active agent parameters
 
         avg_pathlen.append(path)
@@ -83,8 +85,9 @@ def pretrain(name, episodes, gamma, memsize, batch_size,
         if env.actor_pos == (199,199):
             cntr += 1
 
-        if cntr > 5:
-            warm_up_idx += 5
+        if cntr > 2:
+            warm_up_idx += 2
+            cntr = 0
 
         print(f'Ep {i}, {loss} score {score}, Path Len {path}')
 
@@ -111,6 +114,7 @@ def train(name, episodes, gamma, memsize, batch_size,
         reward = 0  # reset total rewards
         average_action = []  # track the average action (can be use to modify exploration if individual is stuck)
         epsilon_hist = []
+        loss_tracker = []
 
         avg_pathlen = [0]
 
@@ -127,7 +131,7 @@ def train(name, episodes, gamma, memsize, batch_size,
                           agent.epsilon, agent.lr,
                           gamma=gamma,
                           score_split=env.get_split_score(), step_split=env.get_split_step(), rand=rand,
-                          alpha=agent.alpha, beta=agent.memory.beta, EP=EP, memsize=memsize, batchsize=batch_size)
+                          EP=EP, memsize=memsize, batchsize=batch_size)
 
             '''Step environment to return resulting observations (future observations in memory)'''
             observation_, reward, done, info = env.step(action, score)
@@ -139,20 +143,25 @@ def train(name, episodes, gamma, memsize, batch_size,
 
             '''Step Learning at after each action'''
             loss = agent.learn()
+            loss_tracker.append(loss)
             observation = observation_  # set current episode for following step
 
             inc_grad = 0  # tune this parameter to increase exploration if stuck
             epsilon_hist.append(agent.epsilon)  # track the epsilong values
 
-            agent.step_params(beta_inc, path, i, np.mean(avg_pathlen[-30:]))  # step active agent parameters
+            agent.step_params(beta_inc, env.step_cntr, i, np.mean(avg_pathlen[-30:]))  # step active agent parameters
+
+            if env.step_cntr % replace_testnet == 0:
+                agent.replace_target_network()
+
+        agent.replace_target_network()
 
         avg_pathlen.append(path)
 
-        plt.data_in(score, wall_cntr=env.wall_cntr, stay_cntr=env.stay_cntr,
+        plt.data_in(score,loss_tracker, wall_cntr=env.wall_cntr, stay_cntr=env.stay_cntr,
                     visit_cntr=env.visit_cntr, path_cntr=path, epsilon=np.mean(epsilon_hist))
 
-        if i % replace_testnet == 0:
-            agent.replace_target_network()
+        if i % 50 == 0:
             plt.live_plot()
         if i % 100 == 0:
             agent.save_models()
