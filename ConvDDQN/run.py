@@ -22,26 +22,23 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
     '''Define name of network and type of experience replay (memory)'''
     name = 'probe'
     net_type = 'DDQN'
-    loss_type = 'L1'
-    EP = 'Random' # Choice of {Random / Priority}
+    loss_type = 'SmoothL1'
+    EP = 'Priority' # Choice of {Random / Priority}
 
     '''Parameters modifying input image of convolutional networks'''
-    img_size = 41
+    img_size = 15
     multi_frame = False # multiple frames (not suggested as our game doesn't have 'motion-blur')
-    if multi_frame == True:
-        channels = 4 # number of prior frames we wish to track + current frame
-    else:
-        channels = 3 # colour image input
+    channels = 4 # colour image input
 
     '''Parameters for exploration'''
     epsilon_min = epsilon_min
     epsilon_dec = ep_dec
 
     '''Network Parameters'''
-    replace_testnet = 1 # frequency of replacing target network with evaluation network
+    replace_testnet = 100 # frequency of replacing target network with evaluation network
     input_dims = [channels, img_size, img_size]  # input dimensions to network
     output_dims = 5  # size of action space
-    memsize = 10000 # capacity of memory
+    memsize = 100000 # capacity of memory
     batch_size = batch_size # batch size
 
     '''Initialise Handlers for Environment & Agent '''
@@ -62,7 +59,7 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
         maze = load_maze()
 
     '''Pre-Training (Warm-up by solving maze ad different distances)'''
-    pre_train_chck = True
+    pre_train_chck = False
     if pre_train_chck:
         pretrain(name, episodes, gamma, memsize, batch_size, env, agent, canv, canv_chck, beta_inc, replace_testnet, EP)
 
