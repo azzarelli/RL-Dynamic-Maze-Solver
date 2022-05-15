@@ -62,7 +62,8 @@ class PrioritizedBuffer:
             batch_idx.append(idx) # track positions of experience in output batch
             batch.append(data) # append experience
             prob = p / p_sum # determine probaility of being choisen dependant on priority relative to sum priorities
-            IS_weight = (self.sum_tree.total() * prob) ** (-self.beta) # define the sampling weight of experience relative to sumtree
+            IS_weight = (self.sum_tree.total() * prob) ** (-self.beta) # Imporatnce sampling weight
+                                                                        #   w_i = (1/N * 1/P(i))^beta = (N*P(i))^-beta
             IS_weights.append(IS_weight) # track weight
 
         '''Modify output of PER to expected output of learning method (refer to `agent.py`)'''
