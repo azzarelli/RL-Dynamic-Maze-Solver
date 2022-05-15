@@ -19,8 +19,10 @@ class Plotter:
         self.visit_cntrs = []
         self.path_cntrs = []
 
-    def data_in(self, score, wall_cntr=-1, stay_cntr=-1, visit_cntr=-1, path_cntr=-1, epsilon=-1):
+
+    def data_in(self, score, loss, wall_cntr=-1, stay_cntr=-1, visit_cntr=-1, path_cntr=-1, epsilon=-1):
         self.scores.append(score)
+        self.loss.append(loss)
         self.scores_avg.append(np.mean(self.scores[-100:]))
         if wall_cntr > -1:
             self.wall_cntrs.append(wall_cntr)
@@ -41,6 +43,16 @@ class Plotter:
     def plot_socre(self):
         plt.figure()
         plt.plot(self.scores, color='green', label='Raw', alpha=0.5)
+        plt.xlabel('Epochs')
+        plt.legend()
+        plt.ylabel('Loss')
+        plt.savefig('liveplot/Loss_' + self.name + '.png')
+        plt.clf()
+        plt.close('all')
+
+    def plot_loss(self):
+        plt.figure()
+        plt.plot(self.loss, color='green', label='Raw', alpha=0.5)
         plt.plot(self.scores_avg, color='orange', label='Average', alpha=0.5)
         plt.xlabel('Epochs')
         plt.legend()
@@ -73,7 +85,8 @@ class Plotter:
         mpl.use("agg")
         print('Plotting ...')
         self.plot_socre()
-        self.plot_epsilon()
+        self.plot_loss()
+        # self.plot_epsilon()
         self.plt_pathlength()
 
         plt.clf()
