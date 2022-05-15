@@ -15,7 +15,7 @@ class Agent():
     def __init__(self, gamma, epsilon, lr, n_actions, input_dims,
                  mem_size, batch_size, eps_min=0.01, eps_dec=5e-7,
                  replace=1000, save_dir='networkdata/', name='maze-test-1.pt', multi_frame:bool=True, memtype:str='Random',
-                 alpha=0.5, beta=0.5, loss_type:str='MSE', net_type='DDQN'):
+                 alpha=0.5, beta=0.4, loss_type:str='MSE', net_type='DDQN'):
         '''Define Network Parameters'''
         self.learn_step_counter = 0 # used to update target network
         self.gamma = gamma
@@ -66,6 +66,8 @@ class Agent():
             print('Error: Incorrectly defined network type.')
             sys.exit()
 
+        self.q_next.cuda()
+        self.q_eval.cuda()
         self.q_next.eval()  # as we aren't training q_next but updating through loading network states, we can remove it from computational graph
         self.freeze_network() # as a redundancy we freeze parameters in network to prevent gradient flow later
 
@@ -102,24 +104,27 @@ class Agent():
 
     def replace_target_network(self):
         """Replace the Target network with newly updated network"""
-        print('Update target network...')
         self.q_next.load_state_dict(self.q_eval.state_dict())
         self.q_next.eval()
         self.freeze_network() # refreeze loaded network
 
-    def step_params(self,b, step, episode, avg=0):
+    def step_params(self, beta, step, episode, avg=0):
         """Re-setting/reconfiguring active parameters (can be called after each epoch/step dependant on need)"""
         self.dec_epsilon(step, episode, avg)
-        self.inc_beta(b)
+        self.inc_beta(beta)
 
     def dec_epsilon(self, step, episode, avg):
         """Explicit method of anealing epsilon for optimal exploration"""
-        self.epsilon = self.epsilon - self.eps_dec if self.epsilon > 0.05 else 0.05
-        c = (-0.012*avg )/100+0.4
+
+        if step == 1:
+            self.eps_start = self.eps_start - 0.001 if self.eps_start > 0.05 else 0.05
+            self.epsilon = self.eps_start
+        else:
+            self.epsilon = self.epsilon + self.eps_dec if self.epsilon < 0.8 else 0.8
 
         # Bound the epsilon
-        if self.epsilon > 0.8: self.epsilon = 0.8
-        elif self.epsilon < 0.2: self.epsilon = 0.2
+        # if self.epsilon > 0.8: self.epsilon = 0.8
+        # elif self.epsilon < 0.1: self.epsilon = 0.1
 
     def inc_beta(self, b):
         """As we generate more experience we want to anneal beta to reduce likelihood of fetching a low priority (& old)
@@ -155,43 +160,44 @@ class Agent():
             state, actions, reward, state_, term = self.memory.sample()
 
         states = T.FloatTensor(state).to(self.q_eval.device)
-        actions = T.LongTensor(actions).type(T.int64) .to(self.q_eval.device)
+        actions = T.LongTensor(actions).type(T.int64).to(self.q_eval.device)
         term = T.BoolTensor(term).to(self.q_eval.device)
         rewards = T.FloatTensor(reward).to(self.q_eval.device)
         states_ = T.FloatTensor(state_).to(self.q_eval.device)
 
         '''Forward experiences (+ hidden cells) through training network'''
-        hs = (T.autograd.Variable(T.zeros(1, 512).float()).to(self.q_eval.device), T.autograd.Variable(T.zeros(1, 512).float()).to(self.q_eval.device))
-        q_pred, hs_ = self.q_eval(states, hs)
-        Q_pred = q_pred.gather(1, actions.unsqueeze(1)).squeeze(1) # fetch q-values for actions defined in experience
+        #hs = (T.autograd.Variable(T.zeros(1, 512).float()).to(self.q_eval.device), T.autograd.Variable(T.zeros(1, 512).float()).to(self.q_eval.device))
+        Q_pred, hs_ = self.q_eval(states) #, hs)
+        Q_pred = Q_pred.gather(1, actions.unsqueeze(1)).squeeze(1) # fetch q-values for actions defined in experience
 
-        '''Fetch Target values '''
-        Q_next, hs = self.q_next(states_, hs)
+        with torch.no_grad():
+            '''Fetch Target values '''
+            q_next, hs = self.q_next(states_) #_, hs)
+            q_next.requires_grad_(requires_grad=False) # freeze leaf node created by forward pass
 
-        q_pred = Q_pred
-        q_next = Q_next
+            '''Determine the target Q values throughout episode by defining future rewards + reward of current action'''
+            if self.replay_experience == 'Priority':
+                Q_target = (rewards.squeeze(1) + self.gamma * T.max(q_next, dim=1)[0]).to(self.q_next.device).detach()
+            elif self.replay_experience == 'Random':
+                Q_target = (rewards.squeeze(0) + self.gamma * T.max(q_next, dim=1)[0]).to(self.q_next.device).detach()
 
-        '''Determine the target Q values throughout episode by defining future rewards + reward of current action'''
-        if self.replay_experience == 'Priority':
-            q_target = rewards.squeeze(1) + self.gamma * T.max(q_next, dim=1)[0]
-        elif self.replay_experience == 'Random':
-            q_target = rewards.squeeze(0) + self.gamma * T.max(q_next, dim=1)[0]
-
-        '''Mask Target values if episode terminated at this point'''
-        q_target[term] = 0.0
-        q_target.detach_()
+            '''Mask Target values if episode terminated at this point'''
+            Q_target[term] = 0.0
 
         '''Loss calculation'''
         if self.replay_experience == 'Priority':
-            td_errors = self.q_eval.loss(q_pred, q_target) * weights.detach()
+            loss = (self.q_eval.loss(Q_pred, Q_target)).to(self.q_eval.device) # loss function
+            tderror = loss.detach() #  T.absolute(q_target - q_pred).detach() # td error is used for updating priorities
+            loss = loss * weights.detach()
         elif self.replay_experience == 'Random':
-            td_errors = self.q_eval.loss(q_pred, q_target)
+            loss = self.q_eval.loss(Q_pred, Q_target).to(self.q_eval.device)
+            tderror = 0
             batch_idxs = []
 
-        return td_errors, batch_idxs
+        return loss, tderror, batch_idxs
 
     def learn(self):
-        """Handle the learning capability
+        """Handle the learning capability & Updating the network
 
         Notes
         -----
@@ -204,9 +210,9 @@ class Agent():
         if not self.memory.is_sufficient():
             return
 
-        '''Set Optimiser and compute loss'''
+        '''Set Optimiser and Compute Loss'''
+        loss, td_error, idxs = self.compute_loss()
         self.q_eval.optimiser.zero_grad()
-        loss, idxs = self.compute_loss()
 
         '''PER, requires mean calculation of loss as TDErrors are passed through as a batch for PER, this is done so
         we can immediately pass TDError through to PER'''
@@ -214,15 +220,16 @@ class Agent():
             lossmean = loss.mean()
             lossmean.backward()
 
-            with torch.no_grad(): # don't mess with gradient flow
-                for idx, td_error in zip(idxs, loss.cpu().detach().numpy()): # pass error through
-                        self.memory.update_priorities(idx, td_error.item()) # updat experience priorities
+            for idx, td in zip(idxs, td_error.cpu().numpy()): # pass error through
+                    self.memory.update_priorities(idx, td+0.01) # update experience priorities + non-zeroing small error term
+
 
         elif self.replay_experience == 'Random':
             lossmean = loss
             loss.backward()
 
+        #torch.nn.utils.clip_grad_norm_(self.q_eval.parameters(), 1.)
         self.q_eval.optimiser.step()
         self.learn_step_counter += 1
 
-        return lossmean.cpu() # return loss to `run.py`
+        return lossmean.item() # return loss to `run.py`
