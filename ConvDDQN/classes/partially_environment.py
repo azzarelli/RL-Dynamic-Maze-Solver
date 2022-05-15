@@ -59,11 +59,11 @@ rewards_dir = {"newmax":+0.,
               }
 
 # Colours for Constructing images
-WALL = [0,0,0]
-PATH = [50, 50, 50]
-EMPTYPATH = [255,255,255]
-END = [255, 100, 100]
-ACTOR = [100, 100, 255]
+WALL = [0, 255, 0]
+PATH = [255, 0, 0]
+EMPTYPATH = [0,0,0]
+END = EMPTYPATH
+ACTOR = [0, 0, 255]
 
 class Environment:
     def __init__(self, img_size:int=10, multi_frame:bool=True):
@@ -157,6 +157,7 @@ class Environment:
         y_lb, y_ub = y - diff, y + diff
 
         obs = [[[0, 0, 0] for i in range(self.window_size)] for j in range(self.window_size)] # initilise observation matrix
+        obs_gray = [[0 for i in range(self.window_size)] for j in range(self.window_size)]
         for j, y_i in enumerate(range(y_lb, y_ub+1)):
             for i, x_i in enumerate(range(x_lb, x_ub+1)):
                 v = self.visible_size # the perpendicular distance visible to our DQN agent
@@ -165,9 +166,19 @@ class Environment:
                 if (x_i >= x-v and x+v >= x_i) and (y_i >= y-v and y+v >= y_i):
                     if y_i < 0 or x_i < 0 or y_i > 199 or x_i > 199:
                         obs[j][i] = [0, 0, 0]
+                        obs_gray[j][i] = 0
                     else:
                         obs[j][i] = self.observation_map[y_i][x_i]
-        return obs
+
+                        if np.array_equal(self.observation_map[y_i][x_i],WALL):
+                            obs_gray[j][i] = 0
+                        elif np.array_equal(self.observation_map[y_i][x_i], PATH):
+                            obs_gray[j][i] = 50
+                        elif np.array_equal(self.observation_map[y_i][x_i], ACTOR):
+                            obs_gray[j][i] = 150
+                        elif np.array_equal(self.observation_map[y_i][x_i], EMPTYPATH):
+                            obs_gray[j][i] = 255
+        return obs, obs_gray
 
     @property
     def observe_environment(self):
@@ -215,53 +226,60 @@ class Environment:
             self.actorpath.append(self.actor_pos)
         self.stay = 0
 
-        obs = self.render_local_state()
+        obs, obs_gray = self.render_local_state()
 
         # Convert observation
         obsv_ = np.array(obs, dtype=np.uint8)
+        obs_gray = np.array(obs_gray, dtype=np.uint8)
         img = Image.fromarray(obsv_, 'RGB')
+        gimg = Image.fromarray(obs_gray, 'L')
+        imgs = self.transform(img)
+        gimg = self.transform(gimg)
 
         # Choice to save images
-        show_img = 1
+        show_img = 0
         if show_img:
             img.save('obs_col.png') # save coloured obseervation
         show_split = 0
         if show_split:
-            im = self.transform(img) # split the image into 3-channel view i.e. what DQN sees
-            save_image(im[0], 'img_R.png')
-            save_image(im[1], 'img_G.png')
-            save_image(im[2], 'img_B.png')
+            save_image(imgs[0], 'img_R.png')
+            save_image(imgs[1], 'img_G.png')
+            save_image(imgs[2], 'img_B.png')
+            save_image(gimg, 'gimg.png')
 
-        # If we have multiple frames we need to turn the current frame into grescale and append to the list of frames of
-        # the game. Observation frames are made from the last 3 states + current state
-        if self.multiple_frames == True:
-            self.obs2D = np.array(img)
-            img = ImageOps.grayscale(img) # convert to greyscale
+        self.obs2D = np.array(img)
+        self.obs = img
 
-            # Choice to save img
-            show_grey = 0
-            if show_grey:
-                img.save('observationmap_grey.png')
-
-
-            if self.init == 0: # when initialialising the environment
-                self.obs = [img for i in range(4)] # initialise the first set of frames as the first view
-                imgs = T.stack([self.transform(o) for o in self.obs], dim=1)[0]
-                self.init += 1
-            else:
-                #if img != self.obs[0]: # no repeating images
-                self.obs.insert(0, img)
-                self.obs.pop(-1)
-                imgs = T.stack([self.transform(o) for o in self.obs], dim=1)[0]
-        else: # Otherwise compose a tensor of the coloured image
-            self.obs2D = np.array(img)
-            self.obs = img
-            imgs = self.transform(img)
+        imgs = T.concat([imgs, gimg], dim=0)
         return imgs
 
     @property
     def get_actor_pos(self):
         return self.actor_pos
+
+    def valid_movement(self, next_local_position):
+        valid_move = True
+        reason = ''
+
+        x_new, y_new = next_local_position
+        obsv_mat = self.loc  # get prior position
+
+        '''Staying Put'''
+        if next_local_position == (1,1):
+            valid_move = False
+            reason = 'stay'
+
+        '''Wall Blocking'''
+        if obsv_mat[y_new][x_new][0] == 0:
+            valid_move = False
+            reason = 'wall'
+
+        '''Fire Blocking'''
+        # if obsv_mat[y_new][x_new][1] > 0:
+        #     valid_move = False
+        #     reason = 'fire'
+
+        return valid_move, reason
 
     def step(self, action, score, warmup=None):
         """Sample environment dependant on action which has occurred
@@ -280,44 +298,56 @@ class Environment:
 
         x_loc, y_loc = (1 + x_inc, 1 + y_inc) # Update Local Position
         obsv_mat = self.loc  # get prior position
-        if action_dir[act_key]['id'] == 'stay':
+
+        valid_move, reason = self.valid_movement((x_loc, y_loc))
+
+        if not valid_move:
             self.stay = 1
-            self.stay_cntr += 1
+            if reason == 'wall':
+                self.wall_cntr += 1
+            elif reason == 'stay':
+                self.stay_cntr += 1
+            elif reason == 'fire':
+                pass # TODO : initialise and step fire counter
+
         elif new_pos in self.actorpath:
             self.visit_cntr += 1
-        elif obsv_mat[y_loc][x_loc][0] == 0:
-            self.wall_cntr += 1
 
-        if self.actor_pos != self.start_position:
-            paths = 0
-            for i,o in enumerate(obsv_mat):
-                for j,s in enumerate(o):
-                    if [i,j] in [[0,1],[1,0],[2,1],[1,2]]:
-                        if s[0] != 0:
-                            paths += 1
-            if paths == 1:
-                print('Path Death')
-                return self.observe_environment, -10., True, {}  # terminate
 
-        # # If too much time elapsed you die in maze :( (terminate maze at this point)
+        '''Dead-end leads to death
+                Getting our agent out of deadend if too complex for this problem (deadend may be quite long), 
+                it is much easier to force death so agent spend more time exploring other viable areas
+        '''
+        paths = 0
+        for i,o in enumerate(obsv_mat):
+            for j,s in enumerate(o):
+                if [i,j] in [[0,1],[1,0],[2,1],[1,2]]:
+                    if s[0] != 0:
+                        paths += 1
+        if paths == 1:
+            print('Path Death')
+            return self.observe_environment, -1., True, {}  # terminate
+
+        '''Force Death if Episode too long''' # Fine if using Duelling DQN but may be problematic with Vanilla DQN
         if abs(self.step_cntr) > self.max_steps: #or
             print('I became an old man and dies in this maze...')
-            return self.observe_environment, -10., True, {} # terminate
+            return self.observe_environment, -1., True, {} # terminate
 
-        if action_dir[act_key]['id'] == 'stay': # if we stay for no reason then penalise
-            self.meta_environment.update_history(self.actor_pos)
-            return self.observe_environment, -0.5, False, {}
-        if obsv_mat[y_loc][x_loc][0] == 0: # check for a wall
-            self.meta_environment.update_history(self.actor_pos)
-            return self.observe_environment, -0.5, False, {} # walking into walls is fatal
+        '''Handle Invalid Movment'''
+        if not valid_move:
+            self.meta_environment.update_history(self.actor_pos) # update meta-environment
+            return self.observe_environment, -0, False, {}
 
-        self.actor_pos = new_pos
-        self.meta_environment.update_history(new_pos)
+        '''Valid Movement'''
+        self.actor_pos = new_pos # set new position
+        self.meta_environment.update_history(new_pos) # update meta-environment
+
+        '''If we are re-tracing steps'''
         if new_pos in self.actorpath:
             self.moved_max = len(self.actorpath)-1
             score = self.prior_scores[-1]
             self.prior_scores.pop(-1)
-            return self.observe_environment, score, False, {}
+            return self.observe_environment, -score, False, {}
 
         # Have we reached the end?
         if self.actor_pos == (199, 199):
@@ -325,11 +355,11 @@ class Environment:
             return self.observation, 10000., True, {}
 
         c = 0.
-        if x_inc>0 or y_inc>0:
-            c = 0.1
-        score = 1 - len(self.actorpath) / (3600)+c
+        # if x_inc>0 or y_inc>0:
+        #     c = 0.01
+        score = 1 # 1 - (len(self.actorpath) / 3600) +c
         self.prior_scores.append(score)
-        return self.observe_environment, score, False, {}
+        return self.observe_environment, 1, False, {}
 
 
 class MetaEnvironment:
