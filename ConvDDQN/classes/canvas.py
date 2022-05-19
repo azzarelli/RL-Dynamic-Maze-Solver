@@ -268,7 +268,7 @@ class Canvas:
             origin[0] + (celldimX * self.actor[0]) + lw / 2,
             origin[1] + (celldimY * self.actor[1]) + lw / 2,
             celldimX, celldimY, col=GREEN)
-        cell_size = 8 # define the cell size shown (can enlarge if too small)
+        cell_size = 3 # define the cell size shown (can enlarge if too small)
         for row, obs_row in enumerate(obs):
             for col, obs_i in enumerate(obs_row):
                 self.drawSquareCell(

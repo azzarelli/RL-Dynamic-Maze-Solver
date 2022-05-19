@@ -109,12 +109,13 @@ def train(name, episodes, gamma, memsize, batch_size,
         observation = env.reset()  # reset environment and return starting observation
         if canv_chck:  # resent canvas
             canv.set_visible(env.loc.copy(), env.actor_pos, [])
-        hs = (torch.zeros(2, 1, 512).float().to(agent.q_eval.device))  # initialise the hidden state for LSTM
+        hs = (torch.zeros(2, 1, 64).float().to(agent.q_eval.device))  # initialise the hidden state for LSTM
         score = 0  # reset score
         reward = 0  # reset total rewards
         average_action = []  # track the average action (can be use to modify exploration if individual is stuck)
         epsilon_hist = []
         loss_tracker = []
+        score_tracker = []
 
         avg_pathlen = [0]
 
@@ -135,8 +136,10 @@ def train(name, episodes, gamma, memsize, batch_size,
 
             '''Step environment to return resulting observations (future observations in memory)'''
             observation_, reward, done, info = env.step(action, score)
+
             path = len(env.actorpath)  # determine new path length
             score += reward  # update episode score
+            score_tracker.append(score)
 
             '''Store experience in memory'''
             agent.store_transition(observation, observation_, reward, action, int(done))
@@ -144,6 +147,7 @@ def train(name, episodes, gamma, memsize, batch_size,
             '''Step Learning at after each action'''
             loss = agent.learn()
             loss_tracker.append(loss)
+
             observation = observation_  # set current episode for following step
 
             inc_grad = 0  # tune this parameter to increase exploration if stuck
@@ -158,13 +162,13 @@ def train(name, episodes, gamma, memsize, batch_size,
 
         avg_pathlen.append(path)
 
-        plt.data_in(score,loss_tracker, wall_cntr=env.wall_cntr, stay_cntr=env.stay_cntr,
+        plt.data_in(score_tracker, loss_tracker, wall_cntr=env.wall_cntr, stay_cntr=env.stay_cntr,
                     visit_cntr=env.visit_cntr, path_cntr=path, epsilon=np.mean(epsilon_hist))
 
         if i % 50 == 0:
             plt.live_plot()
-        if i % 100 == 0:
+            print(f'Ep {i}, {loss} score {score}, Path Len {path} ')
+        if i % 2 == 0:
             agent.save_models()
             env.meta_environment.save_meta_experience()
 
-        print(f'Ep {i}, {loss} score {score}, Path Len {path}')

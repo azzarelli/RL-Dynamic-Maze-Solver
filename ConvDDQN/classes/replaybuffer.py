@@ -32,12 +32,13 @@ class PrioritizedBuffer:
         priority = 1.0 if self.current_length == 0 else self.sum_tree.tree.max()
         self.current_length = self.current_length + 1
 
-        img = state.numpy() # Convert Tensor to numpy to save experience
+        img = state.cpu().numpy() # Convert Tensor to numpy to save experience
         state = img
-        img_ = next_state.numpy()
+        img_ = next_state.cpu().numpy()
         next_state = img_
         experience = (state, action, np.array([reward]), next_state, done)
-        self.sum_tree.add(priority, experience) # add experience and initial priority to SumTree
+        if len(experience) == 5:
+            self.sum_tree.add(priority, experience) # add experience and initial priority to SumTree
 
     def sample(self):
         """Sample experience dependant on prioritisation of states (`alpha`) and prioritisation of fetched memory (`beta`)
@@ -66,6 +67,13 @@ class PrioritizedBuffer:
                                                                         #   w_i = (1/N * 1/P(i))^beta = (N*P(i))^-beta
             IS_weights.append(IS_weight) # track weight
 
+        '''Normalise the weights so once they arent overfitting loss'''
+        IS_weights_ = []
+        mxIS = max(IS_weights)
+        for IS in IS_weights:
+            IS_weights_.append(IS/mxIS)
+        IS_weights = IS_weights_
+
         '''Modify output of PER to expected output of learning method (refer to `agent.py`)'''
         state_batch = []
         action_batch = []
@@ -79,7 +87,6 @@ class PrioritizedBuffer:
             reward_batch.append(reward)
             next_state_batch.append(next_state)
             done_batch.append(done)
-
         return np.array(state_batch), action_batch, np.array(reward_batch), np.array(next_state_batch), done_batch, IS_weights, batch_idx
 
 

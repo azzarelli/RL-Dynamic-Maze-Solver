@@ -20,15 +20,15 @@ import torch
 def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
         gamma=0.9, episodes=100, netname='default.pt', epsilon_min=0.01, ep_dec = 1e-4, batch_size=128, beta_inc=0.01):
     '''Define name of network and type of experience replay (memory)'''
-    name = 'probe'
+    name = netname
     net_type = 'DDQN'
-    loss_type = 'SmoothL1'
-    EP = 'Priority' # Choice of {Random / Priority}
+    loss_type = 'L1'
+    EP = 'Random' # Choice of {Random / Priority}
 
     '''Parameters modifying input image of convolutional networks'''
     img_size = 15
-    multi_frame = False # multiple frames (not suggested as our game doesn't have 'motion-blur')
-    channels = 4 # colour image input
+    multi_frame = False # multiple frames (not suggested as our game doesn't have 'motion-blur') - now depricated as not necessary
+    channels = 3 # colour image input
 
     '''Parameters for exploration'''
     epsilon_min = epsilon_min
@@ -36,9 +36,9 @@ def run(canv_chck=True, chckpt=False, train_chck=True, lr=0.01, epsilon=0.9,
 
     '''Network Parameters'''
     replace_testnet = 100 # frequency of replacing target network with evaluation network
-    input_dims = [channels, img_size, img_size]  # input dimensions to network
+    input_dims = [channels, 40, 40]  # input dimensions to network
     output_dims = 5  # size of action space
-    memsize = 100000 # capacity of memory
+    memsize = 300000 # capacity of memory
     batch_size = batch_size # batch size
 
     '''Initialise Handlers for Environment & Agent '''

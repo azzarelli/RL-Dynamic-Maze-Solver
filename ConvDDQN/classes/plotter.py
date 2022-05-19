@@ -21,9 +21,11 @@ class Plotter:
 
 
     def data_in(self, score, loss, wall_cntr=-1, stay_cntr=-1, visit_cntr=-1, path_cntr=-1, epsilon=-1):
-        self.scores.append(score)
-        self.loss.append(loss)
-        self.scores_avg.append(np.mean(self.scores[-100:]))
+        self.loss = self.loss + loss
+        self.scores = self.scores + score
+        self.scores_avg.append(np.mean(score))
+
+
         if wall_cntr > -1:
             self.wall_cntrs.append(wall_cntr)
         if stay_cntr > -1:
@@ -33,8 +35,8 @@ class Plotter:
         if path_cntr > -1:
             self.path_cntrs.append(path_cntr)
         self.eps_history.append(epsilon)
-        with open('testing_helpers/'+self.name+'.json', 'w') as jf:
-            json.dump(self.scores, jf)
+        # with open('testing_helpers/'+self.name+'.json', 'w') as jf:
+            # json.dump(self.scores, jf)
 
     @property
     def show(self):
@@ -53,7 +55,7 @@ class Plotter:
     def plot_loss(self):
         plt.figure()
         plt.plot(self.loss, color='green', label='Raw', alpha=0.5)
-        plt.plot(self.scores_avg, color='orange', label='Average', alpha=0.5)
+        #plt.plot(self.scores_avg, color='orange', label='Average', alpha=0.5)
         plt.xlabel('Epochs')
         plt.legend()
         plt.ylabel('Avg Score')

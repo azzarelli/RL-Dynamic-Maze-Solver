@@ -17,26 +17,26 @@ class ConvDDQN(nn.Module):
         '''Define DQN Network'''
         self.input_dim = input_dim
         self.num_actions = n_actions
-        self.n_hidden = 648
+        self.n_hidden = 64
 
         self.conv = nn.Sequential(
-            nn.Conv2d(input_dim[0], 16, kernel_size=3), #, stride=4),
+            nn.Conv2d(input_dim[0], 32, kernel_size=8, stride=4),
             nn.ReLU(),
-            nn.Conv2d(16, 16, kernel_size=3), #, stride=2),
+            nn.Conv2d(32, 64, kernel_size=4, stride=2),
             nn.ReLU(),
-            nn.Conv2d(16,8, kernel_size=3), #, stride=1),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1),
             nn.ReLU()
         )
-        self.lstm_layer = nn.LSTM(input_size=512, hidden_size=self.n_hidden, num_layers=1, batch_first=True)
+        self.lstm_layer = nn.LSTM(input_size=64, hidden_size=self.n_hidden, num_layers=1, batch_first=True)
         self.value_stream = nn.Sequential(
-            nn.Linear(self.n_hidden, 128),
+            nn.Linear(self.n_hidden, 512),
             nn.ReLU(),
-            nn.Linear(128, 1)
+            nn.Linear(512, 1)
         )
         self.advantage_stream = nn.Sequential(
-            nn.Linear(self.n_hidden, 128),
+            nn.Linear(self.n_hidden, 512),
             nn.ReLU(),
-            nn.Linear(128, n_actions)
+            nn.Linear(512, n_actions)
         )
 
         '''Optimiser & Loss configuration'''
@@ -58,22 +58,23 @@ class ConvDDQN(nn.Module):
 
     def forward(self, state, hs=None):
         features = self.conv(state) # DDQN forward pass
-
         features = features.view(features.size(0), -1) # modify feature values for lstm input
-        #features, hs_ = self.lstm_layer(features, hs) # pass hidden state & modified feature state to lstm
-        features = features.view(features.shape[0], -1)
-        #features = features.reshape(-1, self.n_hidden) # modify lstm features for DDQN output layers
+        features, hs_ = self.lstm_layer(features, hs) # pass hidden state & modified feature state to lstm
+
+        #features = features.view(features.shape[0], -1) # non lstm
+
+        features = features.reshape(-1, self.n_hidden) # modify lstm features for DDQN output layers
         V = self.value_stream(features)
         A = self.advantage_stream(features)
-        Q = V + (A - A.mean(1).unsqueeze(1).expand(state.size(0), self.num_actions)) # Equation provided in DDQN paper
+        Q = V + (A - A.mean()) #A.mean(1).unsqueeze(1).expand(state.size(0), self.num_actions)) # Equation provided in DDQN paper
         return Q, hs
 
     def save_(self):
-        print('Saving network ...')
+        #print('Saving network ...')
         T.save(self.state_dict(), self.save_file)
 
     def load_save(self): # file
-        print('Load saves ...')
+        #print('Load saves ...')
         self.load_state_dict(T.load(self.save_file))
 
 

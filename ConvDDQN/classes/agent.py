@@ -4,6 +4,7 @@ import torch as T
 import sys
 
 from ConvDDQN.classes.replaybuffer import PrioritizedBuffer, RandomBuffer # Simple Replay Buffer
+from torchvision.utils import save_image
 
 from ConvDDQN.classes.convddqn_lstm import ConvDDQN as ConvDDQNLSTM
 from ConvDDQN.classes.convdqn_lstm import ConvDQN as ConvDQNLSTM
@@ -15,7 +16,7 @@ class Agent():
     def __init__(self, gamma, epsilon, lr, n_actions, input_dims,
                  mem_size, batch_size, eps_min=0.01, eps_dec=5e-7,
                  replace=1000, save_dir='networkdata/', name='maze-test-1.pt', multi_frame:bool=True, memtype:str='Random',
-                 alpha=0.5, beta=0.4, loss_type:str='MSE', net_type='DDQN'):
+                 alpha=0.6, beta=0.4, loss_type:str='MSE', net_type='DDQN'):
         '''Define Network Parameters'''
         self.learn_step_counter = 0 # used to update target network
         self.gamma = gamma
@@ -66,8 +67,10 @@ class Agent():
             print('Error: Incorrectly defined network type.')
             sys.exit()
 
+        #self.scheduler = torch.optim.lr_scheduler.StepLR(self.q_eval.optimiser, step_size=50, gamma=.9)
         self.q_next.cuda()
         self.q_eval.cuda()
+
         self.q_next.eval()  # as we aren't training q_next but updating through loading network states, we can remove it from computational graph
         self.freeze_network() # as a redundancy we freeze parameters in network to prevent gradient flow later
 
@@ -82,21 +85,21 @@ class Agent():
         """Exploration Strategy defined by epsilon greedy algorithm
         (random choice taken when random variable is greater than epsilon)
         """
-        with T.no_grad(): # Detach action from computational graph as we aren't training algorithm at this step
-            if np.random.random() > self.epsilon:
+        if np.random.random() > self.epsilon:
+            with torch.no_grad():
                 state = T.FloatTensor(observation).float().unsqueeze(0).to(self.q_eval.device)
                 Q, hs = self.q_eval(state, hs)
                 actions = Q
-                action = np.argmax(Q.cpu().detach().numpy()) # fetch max Q vale for action
+                action = np.argmax(Q.cpu().data.numpy()) # fetch max Q vale for action
                 rand=False # output flag denoting if the action taken was random or not
 
                 return action, actions, hs, rand
 
-            else:
-                action = np.random.choice(self.action_space)
-                rand=True
+        else:
+            action = np.random.choice(self.action_space)
+            rand=True
 
-                return action, torch.Tensor([]), hs, rand
+            return action, torch.Tensor([]), hs, rand
 
     def store_transition(self, state, state_, reward, action, done):
         """Store experience in memory"""
@@ -108,6 +111,18 @@ class Agent():
         self.q_next.eval()
         self.freeze_network() # refreeze loaded network
 
+    def replace_target_network_soft(self):
+        """Replace the Target network with newly updated network (soft update)
+            targetnet = tau*evalnet + (1-tau) *targetnet
+        """
+        with torch.no_grad():
+            tau = 0.001
+            for t_param, ev_param in zip(self.q_next.parameters(), self.q_eval.parameters()):
+                t_param.data.copy_(tau*t_param + (1-tau)*ev_param)
+                assert t_param.requires_grad == False
+            self.q_next.eval()
+            self.freeze_network() # refreeze loaded network
+
     def step_params(self, beta, step, episode, avg=0):
         """Re-setting/reconfiguring active parameters (can be called after each epoch/step dependant on need)"""
         self.dec_epsilon(step, episode, avg)
@@ -117,7 +132,7 @@ class Agent():
         """Explicit method of anealing epsilon for optimal exploration"""
 
         if step == 1:
-            self.eps_start = self.eps_start - 0.001 if self.eps_start > 0.05 else 0.05
+            self.eps_start = self.eps_start - 0.01 if self.eps_start > 0.05 else 0.05
             self.epsilon = self.eps_start
         else:
             self.epsilon = self.epsilon + self.eps_dec if self.epsilon < 0.8 else 0.8
@@ -165,15 +180,20 @@ class Agent():
         rewards = T.FloatTensor(reward).to(self.q_eval.device)
         states_ = T.FloatTensor(state_).to(self.q_eval.device)
 
+        # Visualise current and next state batch (batch printed as entire image)
+        # save_image(states, 'now.png')
+        # save_image(states_, 'next.png')
+
         '''Forward experiences (+ hidden cells) through training network'''
-        #hs = (T.autograd.Variable(T.zeros(1, 512).float()).to(self.q_eval.device), T.autograd.Variable(T.zeros(1, 512).float()).to(self.q_eval.device))
-        Q_pred, hs_ = self.q_eval(states) #, hs)
+        hs = (T.autograd.Variable(T.zeros(1, 64).float()).to(self.q_eval.device), T.autograd.Variable(T.zeros(1, 64).float()).to(self.q_eval.device))
+        Q_pred, hs_ = self.q_eval(states, hs)
+
         Q_pred = Q_pred.gather(1, actions.unsqueeze(1)).squeeze(1) # fetch q-values for actions defined in experience
+
 
         with torch.no_grad():
             '''Fetch Target values '''
-            q_next, hs = self.q_next(states_) #_, hs)
-            q_next.requires_grad_(requires_grad=False) # freeze leaf node created by forward pass
+            q_next, hs = self.q_next(states_, hs_)
 
             '''Determine the target Q values throughout episode by defining future rewards + reward of current action'''
             if self.replay_experience == 'Priority':
@@ -183,14 +203,13 @@ class Agent():
 
             '''Mask Target values if episode terminated at this point'''
             Q_target[term] = 0.0
-
         '''Loss calculation'''
         if self.replay_experience == 'Priority':
-            loss = (self.q_eval.loss(Q_pred, Q_target)).to(self.q_eval.device) # loss function
-            tderror = loss.detach() #  T.absolute(q_target - q_pred).detach() # td error is used for updating priorities
+            loss = self.q_eval.loss(Q_target, Q_pred).to(self.q_eval.device) # loss function
+            tderror = T.absolute(Q_target.detach() - Q_pred.detach()).cpu().numpy() # td error is used for updating priorities
             loss = loss * weights.detach()
         elif self.replay_experience == 'Random':
-            loss = self.q_eval.loss(Q_pred, Q_target).to(self.q_eval.device)
+            loss = self.q_eval.loss(Q_target, Q_pred).to(self.q_eval.device)
             tderror = 0
             batch_idxs = []
 
@@ -219,9 +238,8 @@ class Agent():
         if self.replay_experience == 'Priority':
             lossmean = loss.mean()
             lossmean.backward()
-
-            for idx, td in zip(idxs, td_error.cpu().numpy()): # pass error through
-                    self.memory.update_priorities(idx, td+0.01) # update experience priorities + non-zeroing small error term
+            for idx, td in zip(idxs, td_error): # pass error through
+                    self.memory.update_priorities(idx, td+0.0001) # update experience priorities + non-zeroing small error term
 
 
         elif self.replay_experience == 'Random':
@@ -230,6 +248,9 @@ class Agent():
 
         #torch.nn.utils.clip_grad_norm_(self.q_eval.parameters(), 1.)
         self.q_eval.optimiser.step()
+        #self.scheduler.step()
         self.learn_step_counter += 1
+
+        self.replace_target_network_soft()
 
         return lossmean.item() # return loss to `run.py`

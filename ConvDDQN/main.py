@@ -1,10 +1,15 @@
 from ConvDDQN.run import run
 
 if __name__ == '__main__':
-    iter = [1]
+    # Batch 128 or 256
+    # gamma 0.9990-0.9999
 
-    for i in iter:
-        run(canv_chck=1, chckpt=False, netname='warmup',
-            episodes=100000, lr=0.001, gamma=0.9999, batch_size=128,
-            epsilon=0.4, ep_dec=0.0001,
-            beta_inc=0.00005)
+    iter = [0.0001]
+    for j in range(1):
+        for i in iter:
+            NAME = 'lr' + str(i) + '_' + str(j)
+            run(canv_chck=0, chckpt=False, netname=NAME,
+                episodes=10000, lr=0.0001, gamma=0.99, batch_size=64,
+                epsilon=0.8, ep_dec=0.00001,
+                beta_inc=0.0005)
+
