@@ -1,4 +1,4 @@
-"""Convolutional DQN with LSTM flavour
+"""Vanilla DQN class method
 """
 import torch as T
 import torch.nn as nn
@@ -18,6 +18,10 @@ class ConvDQN(nn.Module):
         self.num_actions = n_actions
         self.n_hidden = 512
 
+        '''To use the LSTM layer, uncomment the correct functions in the `forward` function'''
+        self.lstm_layer = nn.LSTM(input_size=64, hidden_size=self.n_hidden, num_layers=1, batch_first=True)
+
+        '''Convolutional Layers'''
         self.conv = nn.Sequential(
             nn.Conv2d(input_dim[0], 32, kernel_size=8, stride=4),
             nn.ReLU(),
@@ -27,19 +31,20 @@ class ConvDQN(nn.Module):
             nn.ReLU()
         )
 
-        self.lstm_layer = nn.LSTM(input_size=64, hidden_size=self.n_hidden, num_layers=1, batch_first=True)
+        '''Feature Layers'''
         self.feature_stream = nn.Sequential(
-            # nn.Linear(64, 256),
-            # nn.ReLU(),
-            nn.Linear(self.n_hidden, n_actions)
+            nn.Linear(self.n_hidden, 256),
+            nn.ReLU(),
+            nn.Linear(256, n_actions)
         )
 
         '''Optimiser & Loss configuration'''
         self.optimiser = optim.Adam(self.parameters(), lr=lr)
+
         if loss_type == 'MSE':
             self.loss = nn.MSELoss()
         elif loss_type == 'SmoothL1':
-            self.loss = nn.SmoothL1Loss()
+            self.loss = nn.SmoothL1Loss(reduction='none')
         elif loss_type == 'Huber':
             self.loss = nn.HuberLoss()
         elif loss_type == 'L1':
@@ -51,19 +56,20 @@ class ConvDQN(nn.Module):
         self.to(self.device)
 
     def forward(self, state, hs=None):
-        features = self.conv(state) # DDQN forward pass
-        features = features.view(features.size(0), -1)
+        features = self.conv(state)  # DDQN forward pass
 
-        features, hs_ = self.lstm_layer(features, hs) # modify feature values for lstm input
-        features = features.reshape(-1, self.n_hidden) # pass hidden state & modified feature state to lstm
+        '''Uncomment to use the LSTM layer'''
+        # features = features.view(features.size(0), -1) # modify feature values for lstm input
+        # features, hs = self.lstm_layer(features, hs) # pass hidden state & modified feature state to lstm
+        # features = features.reshape(-1, self.n_hidden) # modify lstm features for DDQN output layers
 
-        Q = self.feature_stream(features) # pass lstm features through last DQN layer
-        return Q, hs_
+        features = features.view(features.shape[0], -1) # non lstm
+        Q = self.feature_stream(features)
+        return Q, hs
 
+    """Saving and Loading network Functions"""
     def save_(self):
-        print('Saving network ...')
         T.save(self.state_dict(), self.save_file)
 
     def load_save(self): # file
-        print('Load saves ...')
         self.load_state_dict(T.load(self.save_file))

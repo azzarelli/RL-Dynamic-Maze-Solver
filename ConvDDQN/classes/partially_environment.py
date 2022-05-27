@@ -3,36 +3,33 @@
 Notes
 -----
 The Environment class contains all information and methods surrounding observation
-For simplicity and ease of optimisation we use `action_dir` and `reward_dir` to describe the action and reward
-spaces.
+For simplicity and ease of optimisation we use `action_dir`  to describe the action space. `digits_dir` provides the
+bit-maps for the digits if we choose to provide numerical values over our input image.
 
 """
 
-from ConvDDQN.lib.read_maze import get_local_maze_information
+from ConvDDQN.lib.read_maze import get_local_maze_information, quick_get_local_maze_information
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
-from PIL import ImageOps
 
 from torchvision.transforms import transforms
 from torchvision.utils import save_image
 
-import time
-
 import torch as T
 
 global digit_dir
-digit_dir = {'none':[[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0],[0,0,0,0,0]],
-             '0':[[0,0,0,0,0],[0,1,1,1,0],[0,1,0,1,0],[0,1,0,1,0],[0,1,0,1,0],[0,1,1,1,0],[0,0,0,0,0]],
-             '1':[[0,0,0,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,1,0,0],[0,0,0,0,0]],
-             '2':[[0,0,0,0,0],[0,1,1,1,0],[0,0,0,1,0],[0,1,1,1,0],[0,1,0,0,0],[0,1,1,1,0],[0,0,0,0,0]],
-             '3':[[0,0,0,0,0],[0,1,1,1,0],[0,0,0,1,0],[0,1,1,1,0],[0,0,0,1,0],[0,1,1,1,0],[0,0,0,0,0]],
-             '4':[[0,0,0,0,0],[0,1,0,1,0],[0,1,0,1,0],[0,1,1,1,0],[0,0,0,1,0],[0,0,0,1,0],[0,0,0,0,0]],
-             '5':[[0,0,0,0,0],[0,1,1,1,0],[0,1,0,0,0],[0,1,1,1,0],[0,0,0,1,0],[0,1,1,1,0],[0,0,0,0,0]],
-             '6':[[0,0,0,0,0],[0,1,1,1,0],[0,1,0,0,0],[0,1,1,1,0],[0,1,0,1,0],[0,1,1,1,0],[0,0,0,0,0]],
-             '7':[[0,0,0,0,0],[0,1,1,1,0],[0,0,0,1,0],[0,0,0,1,0],[0,0,0,1,0],[0,0,0,1,0],[0,0,0,0,0]],
-             '8':[[0,0,0,0,0],[0,1,1,1,0],[0,1,0,1,0],[0,1,1,1,0],[0,1,0,1,0],[0,1,1,1,0],[0,0,0,0,0]],
-             '9':[[0,0,0,0,0],[0,1,1,1,0],[0,1,0,1,0],[0,1,1,1,0],[0,0,0,1,0],[0,0,0,1,0],[0,0,0,0,0]]}
+digit_dir = {'none':[[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0],[0,0,0,0,0,0]],
+             '0':[[0,0,0,0,0,0],[0,1,1,1,0,0],[0,1,0,1,0,0],[0,1,0,1,0,0],[0,1,0,1,0,0],[0,1,1,1,0,0],[0,0,0,0,0,0]],
+             '1':[[0,0,0,0,0,0],[0,0,1,0,0,0],[0,0,1,0,0,0],[0,0,1,0,0,0],[0,0,1,0,0,0],[0,0,1,0,0,0],[0,0,0,0,0,0]],
+             '2':[[0,0,0,0,0,0],[0,1,1,1,0,0],[0,0,0,1,0,0],[0,1,1,1,0,0],[0,1,0,0,0,0],[0,1,1,1,0,0],[0,0,0,0,0,0]],
+             '3':[[0,0,0,0,0,0],[0,1,1,1,0,0],[0,0,0,1,0,0],[0,1,1,1,0,0],[0,0,0,1,0,0],[0,1,1,1,0,0],[0,0,0,0,0,0]],
+             '4':[[0,0,0,0,0,0],[0,1,0,1,0,0],[0,1,0,1,0,0],[0,1,1,1,0,0],[0,0,0,1,0,0],[0,0,0,1,0,0],[0,0,0,0,0,0]],
+             '5':[[0,0,0,0,0,0],[0,1,1,1,0,0],[0,1,0,0,0,0],[0,1,1,1,0,0],[0,0,0,1,0,0],[0,1,1,1,0,0],[0,0,0,0,0,0]],
+             '6':[[0,0,0,0,0,0],[0,1,1,1,0,0],[0,1,0,0,0,0],[0,1,1,1,0,0],[0,1,0,1,0,0],[0,1,1,1,0,0],[0,0,0,0,0,0]],
+             '7':[[0,0,0,0,0,0],[0,1,1,1,0,0],[0,0,0,1,0,0],[0,0,0,1,0,0],[0,0,0,1,0,0],[0,0,0,1,0,0],[0,0,0,0,0,0]],
+             '8':[[0,0,0,0,0,0],[0,1,1,1,0,0],[0,1,0,1,0,0],[0,1,1,1,0,0],[0,1,0,1,0,0],[0,1,1,1,0,0],[0,0,0,0,0,0]],
+             '9':[[0,0,0,0,0,0],[0,1,1,1,0,0],[0,1,0,1,0,0],[0,1,1,1,0,0],[0,0,0,1,0,0],[0,0,0,1,0,0],[0,0,0,0,0,0]]}
 
 # We set the action-space directory to access
 global action_dir
@@ -48,17 +45,6 @@ action_dir = {"0": {"id":'stay',
                     "move":(1,0)}
               }
 
-global rewards_dir
-rewards_dir = {"newmax":+0.,
-               "towards": +.0,
-               "away":+.0,
-               "visited":-0.,
-               "wall":-0.0,
-               "stay":-0.0,
-               "bonus":+1.,
-               "end":-0.
-              }
-
 # Colours for Constructing images
 WALL = [0, 0, 0]
 PATH = [50, 30, 30]
@@ -71,34 +57,65 @@ ACTORBLUR = [0, 0, 100]
 optimal_path = np.load('classes/optimal_path.npy')
 
 class Environment:
-    def __init__(self, img_size:int=10, multi_frame:bool=True):
-        self.multiple_frames = multi_frame
-        self.window_size = img_size
-        self.visible_size = 5
-        self.reset()
+    def __init__(self, img_size:int=10):
+        """Set the primary attributes of the environment handler
 
-        self.meta_environment = MetaEnvironment()
+        Attributes
+        ----------
+        window_size: int, size of the original image frame (this will be enlarged to 40x40 image size as defined in `run.py`)
+        visible_size: int, the radial distance of the square oberservation matrix (=1 means 3x3 pixel observation, =2 means 5x5, etc.)
+        """
+        self.window_size = img_size
+        self.visible_size = 1
+
+        self.reset() # set the secondary attributes (these are class attributes which are reset every episode)
+
+        self.meta_environment = MetaEnvironment() # initialise the meta-state which tracks the frequency of steps for each position on the maze
 
     def reset(self, start_position:tuple=(1,1), max_steps:int=3500, block:tuple=(0,0)):
+        """Reset the environment at the beginning of every episode
+
+        Attributes
+        ----------
+        stay: int, indicator of actor staying
+        step_cnts, wall_cntr, stay_cntr, fire_cntr, visit_cntr: int, these are counters for tracking environment behaviours
+        step_since_move: int, denotes the steps since the last valid move (used for positive reward function)
+        score: float, current score of the environment
+        valid_move: bool, denotes where an action taking is valid
+        prior_scores: list of float, saves the scores of the environment alongisde each step
+
+        start_position: tuple, the x and y coordinates we want the actor to start from
+        block: tuple, x and y values of a path we want to block (this isnt used but could be helpful for warm-up strategies)
+        direction: string, denotes the direction our actor is moving (to be called externally)
+
+        actos_pos: tuple, x and y position of the actor
+        actor_path: list of tuples, denoting the position of the path the has passed
+        observation_map: list of list of RGB values, denotes the gloab map of the maze
+        img_history: list of matrices, denotes the list of global observation made though an epsidoe
+        pos_history: denotes the positions which resulted in images in image history (indexs are relative)
+        hist_idx: int, denotes the position in img_history we want to revisit
+        last_hist_idx: int, denotes the last position in img_history we contributed
+
+        obs2d: 3x3 matrix, denotes the local observation used for drawing pygame canvas
+        observation: Tensor, contains the local observation which we use as out input
+        """
         self.stay = 0
         self.step_cntr = 0
         self.step_since_move = 0
         self.wall_cntr = 0
         self.stay_cntr = 0
         self.visit_cntr = 0
+        self.fire_cntr = 0
         self.score = 0
-        self.prior_scores = []
+        self.valid_move = True
+        self.prior_scores = [1.]
 
-        self.max_steps = 2*max_steps if max_steps > 100 else 100
         self.start_position = start_position
         self.block = block
-        self.bonus_taken = 0
-        self.init = 0
 
         self.direction = 'stay'
 
         self.actor_pos = start_position
-        self.prior_position = [start_position,start_position]
         self.actorpath = [self.actor_pos]
 
         self.loc = []
@@ -114,26 +131,27 @@ class Environment:
 
         return self.observation
 
+    """Function for transforming a PIL image into a tensor"""
     transform = transforms.Compose([transforms.ToTensor()])
 
-    def get_split_score(self):
-        global rewards_dir
-        vis = self.visit_cntr*rewards_dir['visited']
-        stay = self.stay_cntr*rewards_dir['stay']
-        wall = self.wall_cntr*rewards_dir['wall']
-        return [stay, vis, wall]
-
     def get_split_step(self):
+        """Function calling the counters which cound invalid moves - for canvas"""
         return [self.stay_cntr, self.visit_cntr, self.wall_cntr]
 
     def render_global_map(self, loc):
-        x, y = self.actor_pos
+        """Update the global map for tracking observations made all over the maze
+
+        :param loc, 9x9 matrix, defines the local observation
+        """
+        x, y = self.actor_pos # fetch the actos position to fetch the local observation
         pos = [(x + j - 1, y + i - 1) for i in range(3) for j in range(3)]
-        for a, b in pos:  # update new info at new index
+
+        '''Update the global map with the local observation'''
+        for a, b in pos:
             i, j = a - x + 1, b - y + 1  # (0,0) (0,1)(0,2), (1,0) ... (2,2)
             if loc[j][i][0] == 0:  # wall
                 self.observation_map[b][a] = WALL
-            elif loc[j][i][1] > 0:  # wall
+            elif loc[j][i][1] > 0:  # fire
                 self.observation_map[b][a] = FIRE
             else:  # path
                 self.observation_map[b][a] = EMPTYPATH
@@ -145,10 +163,47 @@ class Environment:
         for a, b in self.actorpath:
             self.observation_map[b][a] = PATH
 
+        '''Draw in the actors position and '''
         self.observation_map[y][x] = ACTOR
         self.observation_map[199][199] = END
 
-    def render_local_state(self, vel):
+
+    def get_digits(self, obs, getType):
+        """Fetch digits to paste into image array
+
+        Notes
+        -----
+        We call the digit_dir list constaining the bit-map for digits and synthesise and new image with additional
+        numerical indicators (specifically we have indicated the steps since last moving)
+
+        """
+        if getType == '4digit_step_move':
+            '''Define the numerical value to visualise'''
+            path_len = self.step_since_move # Replace with len(self.actorpath) for showing path length
+
+            '''Find the digit representations'''
+            p_digit_num = (int(path_len / 1000), int(path_len / 100) % 10, int(path_len / 10) % 10, path_len % 10)
+
+            '''Fetch the relevant digits from digit_dir'''
+            p_digits = []
+            for p_i in p_digit_num:
+                p_d = np.array(digit_dir[str(p_i)])
+                p_digits.append(p_d)
+            p_digits = np.concatenate(p_digits, axis=1)
+
+            '''Past the binary digit maps onto the image'''
+            a, b = 10,2 # these are the pixel values for number position (representing the top-left corener of digits pixel map)
+            for j, pos_y in enumerate(p_digits):
+                for i, pos in enumerate(pos_y):
+                    if pos == 1: # Past 1. (white) and 0. (black) relative to bitmap
+                        obs[0][b + j-1][a + i-1] = T.tensor(1.)
+                        obs[1][b + j - 1][a + i - 1] = T.tensor(1.)
+                        obs[2][b + j - 1][a + i - 1] = T.tensor(1.)
+        return obs
+
+
+
+    def render_local_state(self):
         """Render the local state, which will be be processed for input into out DQN
 
         Notes
@@ -157,20 +212,16 @@ class Environment:
         window size so that we see a sub-map of the global map.
         """
         x, y = self.actor_pos # fetch the actors position
-        last_position = (x, y)
-        if vel > 1:
-            last_position = self.prior_position[-1]
-
 
         '''Calculate range of visible to the agent in the local map
                 (combines local observation with learnt environment)
         '''
-        diff = int((self.window_size - 1) / 2)
-        x_lb, x_ub = x - diff, x + diff
-        y_lb, y_ub = y - diff, y + diff
+        diffx = 5 #int((self.window_size) / 2)
+        diffy = 5
+        x_lb, x_ub = x - diffx, x + diffx
+        y_lb, y_ub = y - diffy, y + diffy
 
         obs = [[[0, 0, 0] for i in range(self.window_size)] for j in range(self.window_size)] # initilise observation matrix
-        obs_gray = [[0 for i in range(self.window_size)] for j in range(self.window_size)]
         for j, y_i in enumerate(range(y_lb, y_ub+1)):
             for i, x_i in enumerate(range(x_lb, x_ub+1)):
                 v = self.visible_size # the perpendicular distance visible to our DQN agent
@@ -179,29 +230,12 @@ class Environment:
                 if (x_i >= x-v and x+v >= x_i) and (y_i >= y-v and y+v >= y_i):
                     if y_i < 0 or x_i < 0 or y_i > 199 or x_i > 199:
                         obs[j][i] = WALL
-                        obs_gray[j][i] = 0
                     else:
                         '''Append known pizel-states to enlarged local observation matrix'''
                         obs[j][i] = self.observation_map[y_i][x_i]
 
-                        if np.array_equal(obs[j][i], WALL):
-                            obs_gray[j][i] = 0
-                        elif np.array_equal(obs[j][i], PATH):
-                            obs_gray[j][i] = 50
-                        elif np.array_equal(obs[j][i], ACTOR):
-                            obs_gray[j][i] = 120
-                        elif np.array_equal(obs[j][i], EMPTYPATH):
-                            obs_gray[j][i] = 255
-                        elif np.array_equal(obs[j][i], FIRE):
-                            obs_gray[j][i] = 180
 
-                        '''If we have a moving velocity we want to note the prior position'''
-                        # if (x_i, y_i) == last_position and vel > 1:
-                        #     obs[j][i] = ACTORBLUR # Choose between showing the blud on the actor - channel
-                            #obs_gray[j][i] = 120 # or on the greyscale local environment (not both as we want to
-                                                  # minimise the changes in state-space)
-
-        return obs, obs_gray
+        return obs
 
     def observe_environment(self, velocity:int=1):
         """We fetch our knowledge from prior complete map of environment (shows everything we have currently seen)
@@ -224,8 +258,8 @@ class Environment:
         don't see the global maze.
         """
         x, y = self.actor_pos # fetch the actors position
-        loc = get_local_maze_information(y, x) # fetch the local observation at the lowest-level
-        self.loc = loc
+        loc = quick_get_local_maze_information(y, x) # fetch the local observation at the lowest-level
+        self.loc = loc.copy()
         if self.actor_pos in self.pos_history:
             idx = self.pos_history.index(self.actor_pos)
             self.observation_map = self.img_history[idx-1].copy()
@@ -253,42 +287,28 @@ class Environment:
                         observtions for 3x3 blocks which are same but on different parts of the mase, with more info of 
                         environment states become more unique 
         '''
-        obs, obs_gray = self.render_local_state(velocity)
+        obs = self.render_local_state()
 
         '''Image Processing for numpy array into suitable tensor'''
         obsv_ = np.array(obs, dtype=np.uint8)
-        obs_gray = np.array(obs_gray, dtype=np.uint8)
         img = Image.fromarray(obsv_, 'RGB')
-        gimg = Image.fromarray(obs_gray, 'L')
         img = img.resize((40, 40), resample=Image.NEAREST)
 
-
         imgs = self.transform(img)
-        gimg = self.transform(gimg)
+        imgs = self.get_digits(imgs, '4digit_step_move')
 
-        self.obs2D = np.array(img) # save enlarged observations for other processes
+        self.obs2D = np.array(img).copy() # save enlarged observations for other processes
         self.obs = img
 
-        '''Manual Testing on image processing
-                Channels:
-                    R (0)    - Path trace
-                    G (1)    - Maze walls
-                    B (2)    - Actor and velocity indicator
-                    Grey (3) - Greyscale of enlarged local observation
-        '''
         # Choice to save images
         show_img = 0
         if show_img:
             save_image(imgs, 'obs_col.png') # save coloured obseervation
         show_channels = 0
         if show_channels:
-            save_image(imgs[0], 'img_R.png') # track prior path
-            save_image(imgs[1], 'img_G.png') # track
+            save_image(imgs[0], 'img_R.png') # track each channel
+            save_image(imgs[1], 'img_G.png')
             save_image(imgs[2], 'img_B.png')
-            save_image(gimg, 'gimg.png')
-
-        '''Merge the color channels with greyscale (entire) local map'''
-        #imgs = T.concat([imgs, gimg], dim=0)
 
         return imgs
 
@@ -297,102 +317,95 @@ class Environment:
         return self.actor_pos
 
     def valid_movement(self, next_local_position):
-        valid_move = True
+        """Return the validity of move and reason for valid/invalidity
+        """
+        valid_move = True # initialise a move as valid until proven guilty
         reason = ''
         x_new, y_new = next_local_position
         obsv_mat = self.loc  # get prior position
 
+        '''Check road-blocks (fire & wall) - For dead ends & fire wall
+        '''
+        paths = 0
+        fire_block = 0
+        for i, o in enumerate(obsv_mat):
+            for j, s in enumerate(o):
+                if [i, j] in [[0, 1], [1, 0], [2, 1], [1, 2]]:
+                    if s[0] != 0:
+                        paths += 1
+                    if s[1] > 0:
+                        fire_block += 1
+        fire_block = 0 # delet for dynamic fire
         '''Staying Put'''
         if next_local_position == (1,1):
-            valid_move = False
-            reason = 'stay'
-        '''Wall Blocking'''
-        if obsv_mat[y_new][x_new][0] == 0:
-            valid_move = False
-            reason = 'wall'
-        '''Fire Blocking'''
-        if obsv_mat[y_new][x_new][1] > 0:
-            valid_move = False
-            reason = 'fire'
+            if fire_block > 0: # we should stay if fire is near us
+                valid_move = True
+                reason = 'fireblock'
+            else: # otherwise we penalise staying
+                valid_move = False
+                reason = 'stay'
+        else:
+            # Dead end
+            if paths == 1:
+                valid_move = False
+                reason = 'deadend'
+            # Wall Blocking
+            elif obsv_mat[y_new][x_new][0] == 0:
+                valid_move = False
+                reason = 'wall'
+            # Fire Blocking
+            elif obsv_mat[y_new][x_new][1] > 0:
+                valid_move = False
+                reason = 'fire'
 
+        self.valid_move = valid_move
         return valid_move, reason
 
-    def movement_velocity(self, new_position):
-        """Check if the actor is making consequent steps (or stopping in the middle of a walk)
-
-        Notes
-        -----
-        Velocity is determined by whether the actor is moving away from initial target, if several consequent steps have
-        been taken, velocity = 2 otherwise velocity = 1. This constant is used as a multiplicative factor increasing
-        reward of movement depednant on velocity (higher rewards for more consequent steps)
-        """
-        velocity = 1
-        if new_position not in self.actorpath: # check if we have moved away from start
-            if self.prior_position[0] != self.prior_position[1]:
-                velocity = 2
-        return velocity
-
-    def step(self, action, score, warmup=None):
+    def step(self, action, score):
         """Sample environment dependant on action which has occurred
         """
         self.score = score
         self.step_cntr += 1 # increment time
         self.step_since_move += 1
+        self.valid_move = True
 
         global action_dir # Fetch action directory containing the properties of each action w.r.t environment
         act_key = str(action)
-        global rewards_dir # Fetch reward directory
 
         x_inc, y_inc = action_dir[act_key]['move'] # fetch movement from position (1,1)
         self.direction = action_dir[act_key]['id']
 
         x,y, = self.actor_pos
-        self.prior_position.pop(0) # remove second last position
-        self.prior_position.append((x,y)) # append new last position
         new_pos =  (x + x_inc, y + y_inc)
-
         x_loc, y_loc = (1 + x_inc, 1 + y_inc) # Update Local Position
-        obsv_mat = self.loc  # get prior position
 
         valid_move, reason = self.valid_movement((x_loc, y_loc))
-
-        if not valid_move:
-            self.stay = 1
-            if reason == 'wall':
-                self.wall_cntr += 1
-            elif reason == 'stay':
-                self.stay_cntr += 1
-            elif reason == 'fire':
-
-                pass # TODO : initialise and step fire counter
-
-        elif new_pos in self.actorpath:
+        if not valid_move: # update wall, fire and stay counters
+            self.update_counters(reason)
+        elif new_pos in self.actorpath: # otherwise update re-visit counter
             self.visit_cntr += 1
 
-
-        '''Dead-end leads to death
-                Getting our agent out of deadend if too complex for this problem (deadend may be quite long), 
-                it is much easier to force death so agent spend more time exploring other viable areas
-        '''
-        paths = 0
-        for i,o in enumerate(obsv_mat):
-            for j,s in enumerate(o):
-                if [i,j] in [[0,1],[1,0],[2,1],[1,2]]:
-                    if s[0] != 0:
-                        paths += 1
-        if paths == 1:
-            #print('Path Death')
-            return self.observe_environment(), -0., True, {}  # terminate
-
-        '''Force Death if Episode too long''' # Fine if using Duelling DQN but may be problematic with Vanilla DQN
-        if abs(self.step_cntr) > 8000:# 4000: #self.max_steps: #or
+        '''Termination for deadend or duration:'''
+        if reason == 'deadend':
+            #print('deadend')
+            return self.observe_environment(), -10., True, {}  # terminate
+        if self.step_since_move == 50:
+            #print('step death...')
+            return self.observe_environment(), -10., True, {} # terminate
+        if abs(self.step_cntr) > 4000:
             #print('I became an old man and dies in this maze...')
             return self.observe_environment(), -0., True, {} # terminate
 
-        '''Handle Invalid Movment'''
+        '''Handle (other) Invalid Movments'''
         if not valid_move:
             self.meta_environment.update_history(self.actor_pos) # update meta-environment
-            return self.observe_environment(), -0, False, {}
+            return self.observe_environment(), -0., False, {}
+
+        '''When fire blocks our paths, reward patience'''
+        if reason == 'fireblock':
+            self.step_since_move = 1 # reset the step since target movement counter
+            self.meta_environment.update_history(self.actor_pos) # update meta-environment
+            return self.observe_environment(), 1., False, {}  # reward staying if fire is blocking
 
         '''Valid Movement'''
         self.actor_pos = new_pos # set new position
@@ -401,25 +414,30 @@ class Environment:
         '''If we are re-tracing steps'''
         if new_pos in self.actorpath:
             self.moved_max = len(self.actorpath)-1
-            score = self.prior_scores[-1]
             self.prior_scores.pop(-1)
-            return self.observe_environment(), -score, False, {}
+            self.step_since_move = 0
+            return self.observe_environment(), -1., False, {} # negativly penalise retracing steps
 
         # Have we reached the end?
         if self.actor_pos == (199, 199):
             print('Final achieved')
             return self.observe_environment(), 10000., True, {}
 
-        velocity = self.movement_velocity(new_position=new_pos)
-
-        score = 0
-        if new_pos in optimal_path:
-            score = (1- (len(self.actorpath) / 3600)) #/ self.step_since_move #* velocity
+        score = 1/self.step_since_move if 1/self.step_since_move > 0.1 else 0.1  # (1 - (len(self.actorpath) / 3600)) #*0.01 #/ self.step_since_move #* velocity
 
         self.prior_scores.append(score)
 
         self.step_since_move = 0 # reset
-        return self.observe_environment(velocity), score, False, {}
+        return self.observe_environment(), score, False, {}
+
+    def update_counters(self, reason):
+        self.stay = 1
+        if reason == 'wall':
+            self.wall_cntr += 1
+        elif reason == 'stay':
+            self.stay_cntr += 1
+        elif reason == 'fire':
+            self.fire_cntr += 1
 
 
 class MetaEnvironment:
@@ -431,94 +449,7 @@ class MetaEnvironment:
         self.environment_history[y][x] += 1
 
     def save_meta_experience(self, fp:str='META_experience.data'):
-        np.save(fp, self.environment_history)
-        plt.imshow(self.environment_history, cmap='hot', interpolation='nearest')
+        hist = self.environment_history.copy()
+        hist[hist==0] = np.NAN # Turn all unexplored elements to white (easier to visualise)
+        plt.imshow(hist, cmap='hot', interpolation='nearest')
         plt.savefig('liveplot/METADATA.png')
-
-        # def step(self, action, score, warmup=None):
-        #     """Sample environment dependant on action which has occurred
-        #     """
-        #     self.score = score
-        #     self.step_cntr += 1  # increment time
-        #     self.step_since_move += 1
-        #
-        #     global action_dir  # Fetch action directory containing the properties of each action w.r.t environment
-        #     act_key = str(action)
-        #     global rewards_dir  # Fetch reward directory
-        #
-        #     x_inc, y_inc = action_dir[act_key]['move']  # fetch movement from position (1,1)
-        #     self.direction = action_dir[act_key]['id']
-        #
-        #     x, y, = self.actor_pos
-        #     self.prior_position.pop(0)  # remove second last position
-        #     self.prior_position.append((x, y))  # append new last position
-        #     new_pos = (x + x_inc, y + y_inc)
-        #
-        #     x_loc, y_loc = (1 + x_inc, 1 + y_inc)  # Update Local Position
-        #     obsv_mat = self.loc  # get prior position
-        #
-        #     valid_move, reason = self.valid_movement((x_loc, y_loc))
-        #
-        #     if not valid_move:
-        #         self.stay = 1
-        #         if reason == 'wall':
-        #             self.wall_cntr += 1
-        #         elif reason == 'stay':
-        #             self.stay_cntr += 1
-        #         elif reason == 'fire':
-        #
-        #             pass  # TODO : initialise and step fire counter
-        #
-        #     elif new_pos in self.actorpath:
-        #         self.visit_cntr += 1
-        #
-        #     '''Dead-end leads to death
-        #             Getting our agent out of deadend if too complex for this problem (deadend may be quite long),
-        #             it is much easier to force death so agent spend more time exploring other viable areas
-        #     '''
-        #     paths = 0
-        #     for i, o in enumerate(obsv_mat):
-        #         for j, s in enumerate(o):
-        #             if [i, j] in [[0, 1], [1, 0], [2, 1], [1, 2]]:
-        #                 if s[0] != 0:
-        #                     paths += 1
-        #     if paths == 1:
-        #         # print('Path Death')
-        #         return self.observe_environment(), -0., True, {}  # terminate
-        #
-        #     '''Force Death if Episode too long'''  # Fine if using Duelling DQN but may be problematic with Vanilla DQN
-        #     if abs(self.step_cntr) > 8000:  # 4000: #self.max_steps: #or
-        #         # print('I became an old man and dies in this maze...')
-        #         return self.observe_environment(), -0., True, {}  # terminate
-        #
-        #     '''Handle Invalid Movment'''
-        #     if not valid_move:
-        #         self.meta_environment.update_history(self.actor_pos)  # update meta-environment
-        #         return self.observe_environment(), -0, False, {}
-        #
-        #     '''Valid Movement'''
-        #     self.actor_pos = new_pos  # set new position
-        #     self.meta_environment.update_history(new_pos)  # update meta-environment
-        #
-        #     '''If we are re-tracing steps'''
-        #     if new_pos in self.actorpath:
-        #         self.moved_max = len(self.actorpath) - 1
-        #         score = self.prior_scores[-1]
-        #         self.prior_scores.pop(-1)
-        #         return self.observe_environment(), -score, False, {}
-        #
-        #     # Have we reached the end?
-        #     if self.actor_pos == (199, 199):
-        #         print('Final achieved')
-        #         return self.observe_environment(), 10000., True, {}
-        #
-        #     velocity = self.movement_velocity(new_position=new_pos)
-        #
-        #     score = 0
-        #     if new_pos in optimal_path:
-        #         score = (1 - (len(self.actorpath) / 3600))  # / self.step_since_move #* velocity
-        #
-        #     self.prior_scores.append(score)
-        #
-        #     self.step_since_move = 0  # reset
-        #     return self.observe_environment(velocity), score, False, {}

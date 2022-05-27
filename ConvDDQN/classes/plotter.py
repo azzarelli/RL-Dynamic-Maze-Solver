@@ -1,12 +1,14 @@
-import json
+"""Graphing Handler for tracking loss, path length, etc.
+"""
 
+import json
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 
 class Plotter:
-
     def __init__(self, name):
+        '''Initialise the save-name and trackers'''
         self.name = name
 
         self.scores = []
@@ -21,10 +23,10 @@ class Plotter:
 
 
     def data_in(self, score, loss, wall_cntr=-1, stay_cntr=-1, visit_cntr=-1, path_cntr=-1, epsilon=-1):
+        """Fetch data to save - some values are optional to track"""
         self.loss = self.loss + loss
-        self.scores = self.scores + score
-        self.scores_avg.append(np.mean(score))
-
+        self.scores = np.concatenate((self.scores,score))
+        self.scores_avg.append(self.scores)
 
         if wall_cntr > -1:
             self.wall_cntrs.append(wall_cntr)
@@ -35,11 +37,14 @@ class Plotter:
         if path_cntr > -1:
             self.path_cntrs.append(path_cntr)
         self.eps_history.append(epsilon)
+
+        '''Option to dump saved data into folder (for documentation)'''
         # with open('testing_helpers/'+self.name+'.json', 'w') as jf:
             # json.dump(self.scores, jf)
 
     @property
     def show(self):
+
         plt.show()
 
     def plot_socre(self):
@@ -47,8 +52,8 @@ class Plotter:
         plt.plot(self.scores, color='green', label='Raw', alpha=0.5)
         plt.xlabel('Epochs')
         plt.legend()
-        plt.ylabel('Loss')
-        plt.savefig('liveplot/Loss_' + self.name + '.png')
+        plt.ylabel('Scoes')
+        plt.savefig('liveplot/Score_' + self.name + '.png')
         plt.clf()
         plt.close('all')
 
@@ -58,8 +63,8 @@ class Plotter:
         #plt.plot(self.scores_avg, color='orange', label='Average', alpha=0.5)
         plt.xlabel('Epochs')
         plt.legend()
-        plt.ylabel('Avg Score')
-        plt.savefig('liveplot/Score_' + self.name + '.png')
+        plt.ylabel('Lss')
+        plt.savefig('liveplot/Loss_' + self.name + '.png')
         plt.clf()
         plt.close('all')
 
@@ -84,12 +89,15 @@ class Plotter:
         plt.close('all')
 
     def live_plot(self):
+        """Plot the data live into liveplot folder"""
         mpl.use("agg")
         print('Plotting ...')
+
+        '''Choose which plotting functionsto call'''
         self.plot_socre()
         self.plot_loss()
         # self.plot_epsilon()
         self.plt_pathlength()
 
-        plt.clf()
+        plt.clf() # need to close plots to prevent memory failures from matplotlib library
         plt.close('all')

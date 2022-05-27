@@ -1,15 +1,11 @@
 import numpy as np
-import torch
 import torch as T
 import sys
 
 from ConvDDQN.classes.replaybuffer import PrioritizedBuffer, RandomBuffer # Simple Replay Buffer
-from torchvision.utils import save_image
-
 from ConvDDQN.classes.convddqn_lstm import ConvDDQN as ConvDDQNLSTM
 from ConvDDQN.classes.convdqn_lstm import ConvDQN as ConvDQNLSTM
 
-import torch.nn as nn
 import torch
 
 class Agent():
@@ -67,7 +63,7 @@ class Agent():
             print('Error: Incorrectly defined network type.')
             sys.exit()
 
-        #self.scheduler = torch.optim.lr_scheduler.StepLR(self.q_eval.optimiser, step_size=50, gamma=.9)
+        # Ensure we are running on cude (GPU - if we dont have GPU this wont work - obviously)
         self.q_next.cuda()
         self.q_eval.cuda()
 
@@ -107,7 +103,7 @@ class Agent():
 
     def replace_target_network(self):
         """Replace the Target network with newly updated network"""
-        self.q_next.load_state_dict(self.q_eval.state_dict())
+        self.q_next.load_state_dict(self.q_eval.state_dict().copy())
         self.q_next.eval()
         self.freeze_network() # refreeze loaded network
 
@@ -129,17 +125,17 @@ class Agent():
         self.inc_beta(beta)
 
     def dec_epsilon(self, step, episode, avg):
-        """Explicit method of anealing epsilon for optimal exploration"""
-
+        """Explicit method of annealing epsilon for optimal exploration"""
         if step == 1:
-            self.eps_start = self.eps_start - 0.01 if self.eps_start > 0.05 else 0.05
-            self.epsilon = self.eps_start
-        else:
-            self.epsilon = self.epsilon + self.eps_dec if self.epsilon < 0.8 else 0.8
+            '''At the begining of each epsidoe anneal the start-epsilon value'''
+            self.eps_start = self.eps_start - 0.002 if self.eps_start > 0.1 else 0.1
 
-        # Bound the epsilon
-        # if self.epsilon > 0.8: self.epsilon = 0.8
-        # elif self.epsilon < 0.1: self.epsilon = 0.1
+            '''Every 10 epsidoes decrease the rate of epsilon increase between steps by half'''
+            if episode % 10 == 0:
+                self.eps_dec = self.eps_dec*0.5 if self.eps_dec > 0.00001 else 0.00001 # bound the minimum rate for 0.04 increase over 4000 steps
+            self.epsilon = self.eps_start
+        else: # gradually increase epsilon throughout episode
+            self.epsilon = self.epsilon + self.eps_dec if self.epsilon < 0.6 else 0.6 # bound epsilon by 0.6 - this is high enough to incite random exploration
 
     def inc_beta(self, b):
         """As we generate more experience we want to anneal beta to reduce likelihood of fetching a low priority (& old)
@@ -185,7 +181,7 @@ class Agent():
         # save_image(states_, 'next.png')
 
         '''Forward experiences (+ hidden cells) through training network'''
-        hs = (T.autograd.Variable(T.zeros(1, 64).float()).to(self.q_eval.device), T.autograd.Variable(T.zeros(1, 64).float()).to(self.q_eval.device))
+        hs = (T.autograd.Variable(T.zeros(1, 512).float()).to(self.q_eval.device), T.autograd.Variable(T.zeros(1, 512).float()).to(self.q_eval.device))
         Q_pred, hs_ = self.q_eval(states, hs)
 
         Q_pred = Q_pred.gather(1, actions.unsqueeze(1)).squeeze(1) # fetch q-values for actions defined in experience
@@ -193,7 +189,7 @@ class Agent():
 
         with torch.no_grad():
             '''Fetch Target values '''
-            q_next, hs = self.q_next(states_, hs_)
+            q_next, hs = self.q_next(states_, hs)
 
             '''Determine the target Q values throughout episode by defining future rewards + reward of current action'''
             if self.replay_experience == 'Priority':
@@ -246,11 +242,10 @@ class Agent():
             lossmean = loss
             loss.backward()
 
-        #torch.nn.utils.clip_grad_norm_(self.q_eval.parameters(), 1.)
         self.q_eval.optimiser.step()
-        #self.scheduler.step()
         self.learn_step_counter += 1
 
-        self.replace_target_network_soft()
+        # Uncomment if we want to use soft-updates on network
+        # self.replace_target_network_soft()
 
         return lossmean.item() # return loss to `run.py`
