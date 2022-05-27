@@ -8,7 +8,7 @@ time-steps.
 We also have handlers for the environment processing (encapsulating image processing, state-space tracking, reward function) 
 and actor network (for learning, exploration memory control).
 
-## Compilating and Running
+## Compiling and Running
 We have provided a `requirements.txt` file containing the package requirements to run this project.
 
 

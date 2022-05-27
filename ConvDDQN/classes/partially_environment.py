@@ -179,7 +179,7 @@ class Environment:
         """
         if getType == '4digit_step_move':
             '''Define the numerical value to visualise'''
-            path_len = self.step_since_move # Replace with len(self.actorpath) for showing path length
+            path_len = len(self.actorpath) # Replace with len(self.actorpath) for showing path length
 
             '''Find the digit representations'''
             p_digit_num = (int(path_len / 1000), int(path_len / 100) % 10, int(path_len / 10) % 10, path_len % 10)

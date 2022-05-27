@@ -136,8 +136,8 @@ def test(gamma, memsize, batch_size,
                           gamma=gamma, step_split=env.get_split_step(), rand=rand,
                           EP=EP, memsize=memsize, batchsize=batch_size)
 
-            action_taken.append(action)
-            local_observation.append(env.loc)
+            action_taken.append(float(action))
+            local_observation.append(env.loc.tolist())
             '''Step environment to return resulting observations'''
             observation_, reward, done, info = env.step(action, score)
             observation = observation_  # set current episode for following step
@@ -146,4 +146,9 @@ def test(gamma, memsize, batch_size,
             time_step.append(env.step_cntr)
             position.append(env.actor_pos)
 
-    output_data = {"Position":position, "Step":time_step, "Action":action_taken,"Observations":local_observation, "Path Length":path_length}
+    '''Add tracking info to json file'''
+    import json
+    output_data = {"Position":position, "Step":time_step, "Action":action_taken, "Observations":local_observation, "Path Length":path_length}
+
+    with open('output_file.json', 'w') as jf:
+        json.dump(output_data, jf)

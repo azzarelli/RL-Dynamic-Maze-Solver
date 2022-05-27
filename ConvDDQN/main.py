@@ -8,7 +8,7 @@ if __name__ == '__main__':
     iter = [0] # We use for loops for hyper parameter tuning
     for j in range(1):
         for i in iter:
-            NAME = 'eps0.4_0' # Name of the network
+            NAME = 'redo' # Name of the network
             '''
                 canv_chck: int, frequency of showing an epsidoe using pygame canvas (every n episodes) where n > -1
                 train_chck: bool, True for training otherwise False
