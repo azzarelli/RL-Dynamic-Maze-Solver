@@ -15,9 +15,12 @@ We have provided a `requirements.txt` file containing the package requirements t
 To run the program simply open up the `main.py` file and configure the setting you wish to use. Current
 setting exist for **training** (REMEBER to set a new `name` for different runs). 
 
-If you want to test an pre-trained network, change: `canv_chck=1,  train_chck=True, chckpt=True, epsilon=0.0`, other 
+If you want to test a pre-trained network, change: `canv_chck=1,  train_chck=True, chckpt=True, epsilon=0.0`, other 
 parameters will be ignored/remain the same. The testing function will also provide the output file
 as a *json* providing the sequence of paths, local observation, actions, steps position.
+
+You can use `main_2.py` to execute a test iteration using the `exampleNet` pretrained network. Otherwise used `main.py`
+for running training loops.
 
 ## File-Directory Structure: 
     ConvDDQN/
