@@ -5,6 +5,9 @@ Notes
 The Environment class contains all information and methods surrounding observation
 For simplicity and ease of optimisation we use `action_dir`  to describe the action space. `digits_dir` provides the
 bit-maps for the digits if we choose to provide numerical values over our input image.
+We have also included the class method defining the meta-state environment which provides us with the traffic of the actor over
+the learning period
+
 
 """
 
@@ -179,7 +182,7 @@ class Environment:
         """
         if getType == '4digit_step_move':
             '''Define the numerical value to visualise'''
-            path_len = len(self.actorpath) # Replace with len(self.actorpath) for showing path length
+            path_len = len(self.actorpath) # can define any integer values between 0 and 9999
 
             '''Find the digit representations'''
             p_digit_num = (int(path_len / 1000), int(path_len / 100) % 10, int(path_len / 10) % 10, path_len % 10)
@@ -362,23 +365,26 @@ class Environment:
         return valid_move, reason
 
     def step(self, action, score):
-        """Sample environment dependant on action which has occurred
+        """Sample environment dependant on action and return the relevant reward
         """
-        self.score = score
-        self.step_cntr += 1 # increment time
+        self.score = score # save score to
+
+        '''Increment counters and initialise environment variable'''
+        self.step_cntr += 1
         self.step_since_move += 1
-        self.valid_move = True
-
+        self.valid_move = True # initilised the valid move flag
         global action_dir # Fetch action directory containing the properties of each action w.r.t environment
-        act_key = str(action)
+        act_key = str(action) # note action as a string {'up','left','right','down','stay'}
 
+        '''Determine the expected movement (increment/decrement values for x,y positions)'''
         x_inc, y_inc = action_dir[act_key]['move'] # fetch movement from position (1,1)
-        self.direction = action_dir[act_key]['id']
-
-        x,y, = self.actor_pos
-        new_pos =  (x + x_inc, y + y_inc)
+        self.direction = action_dir[act_key]['id'] # save the direction of movement
+        x,y, = self.actor_pos # fetch the actors global position
+        new_pos =  (x + x_inc, y + y_inc) # determine expects new position (we will validate this move later)
         x_loc, y_loc = (1 + x_inc, 1 + y_inc) # Update Local Position
 
+
+        '''Validate the movement and update movement counters'''
         valid_move, reason = self.valid_movement((x_loc, y_loc))
         if not valid_move: # update wall, fire and stay counters
             self.update_counters(reason)
@@ -392,7 +398,7 @@ class Environment:
         if self.step_since_move == 50:
             #print('step death...')
             return self.observe_environment(), -10., True, {} # terminate
-        if abs(self.step_cntr) > 4000:
+        if abs(self.step_cntr) > 8000:
             #print('I became an old man and dies in this maze...')
             return self.observe_environment(), -0., True, {} # terminate
 
@@ -423,11 +429,11 @@ class Environment:
             print('Final achieved')
             return self.observe_environment(), 10000., True, {}
 
+        '''Determine the score depedant on number of steps since valid movement'''
         score = 1/self.step_since_move if 1/self.step_since_move > 0.1 else 0.1  # (1 - (len(self.actorpath) / 3600)) #*0.01 #/ self.step_since_move #* velocity
 
-        self.prior_scores.append(score)
-
-        self.step_since_move = 0 # reset
+        self.prior_scores.append(score) # append score
+        self.step_since_move = 0 # reset movement counter
         return self.observe_environment(), score, False, {}
 
     def update_counters(self, reason):
@@ -441,14 +447,19 @@ class Environment:
 
 
 class MetaEnvironment:
+    """Class method which illustrates the frequency of movement around the maze by counting the number of steps an actor
+    has made in each position. 'Hot' regions will denote areas of high traffic, hence confirmation of learnt positions
+    """
     def __init__(self):
-        self.environment_history = np.zeros((200,200))
+        self.environment_history = np.zeros((200,200)) # maze position counter
 
     def update_history(self, global_position):
+        """Update the heat map"""
         x,y = global_position
         self.environment_history[y][x] += 1
 
     def save_meta_experience(self, fp:str='META_experience.data'):
+        """Save the map as a heat-map"""
         hist = self.environment_history.copy()
         hist[hist==0] = np.NAN # Turn all unexplored elements to white (easier to visualise)
         plt.imshow(hist, cmap='hot', interpolation='nearest')
