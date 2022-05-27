@@ -1,4 +1,4 @@
-"""Main execution function
+"""Main execution function (Use this method for executing the exampleNet)
         - tunable paramerters included to control function of the algorithm
 
 """
